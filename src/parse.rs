@@ -13,6 +13,77 @@ use crate::aig::Aig;
 use crate::node::{AigAndGate, AigInput, Node};
 use crate::reference::Ref;
 
+impl Aig {
+    pub fn parse_file<P: AsRef<Path>>(path: P) -> eyre::Result<Self> {
+        let file = File::open(path)?;
+        Self::parse_lines(BufReader::new(file).lines().map(|r| r.unwrap()))
+    }
+
+    pub fn parse_lines(mut lines: impl Iterator<Item = String>) -> eyre::Result<Self> {
+        let header = parse_header(&lines.next().ok_or_else(|| eyre!("Missing header"))?)?;
+
+        let mut inputs = Vec::with_capacity(header.inputs as usize);
+        for _ in 0..header.inputs {
+            let input = parse_input(&lines.next().ok_or_else(|| eyre!("Missing input"))?)?;
+            ensure!(
+                input.id <= header.max,
+                "Input id {} is greater than max {}",
+                input.id,
+                header.max
+            );
+            inputs.push(input);
+        }
+
+        // TODO: parse latches
+        ensure!(header.latches == 0, "Latches are not supported");
+
+        let mut outputs = Vec::with_capacity(header.outputs as usize);
+        for _ in 0..header.outputs {
+            let output = parse_output(&lines.next().ok_or_else(|| eyre!("Missing output"))?)?;
+            ensure!(
+                output.id() <= header.max,
+                "Output id {} is greater than max {}",
+                output.id(),
+                header.max
+            );
+            outputs.push(output);
+        }
+
+        let mut ands = Vec::with_capacity(header.ands as usize);
+        for _ in 0..header.ands {
+            let and = parse_and(&lines.next().ok_or_else(|| eyre!("Missing gate"))?)?;
+            ensure!(
+                and.id <= header.max,
+                "And gate id {} is greater than max {}",
+                and.id,
+                header.max
+            );
+            ands.push(and);
+        }
+
+        let mut mapping: HashMap<u32, Node> = HashMap::new();
+        for input in inputs.iter().copied() {
+            ensure!(
+                !mapping.contains_key(&input.id),
+                "Duplicate gate id {}",
+                input.id
+            );
+            mapping.insert(input.id, Node::Input(input));
+        }
+        for and in ands.iter().copied() {
+            ensure!(
+                !mapping.contains_key(&and.id),
+                "Duplicate gate id {}",
+                and.id
+            );
+            mapping.insert(and.id, Node::AndGate(and));
+        }
+
+        let aig = Aig::new(inputs, outputs, ands, mapping);
+        Ok(aig)
+    }
+}
+
 /// AIGER header: `'aag M I L O A'`, where `M >= I + L + A`.
 struct Header {
     /// Maximum variable index.
@@ -98,75 +169,6 @@ fn parse_and(s: &str) -> eyre::Result<AigAndGate> {
     let right = Ref::from_u32(right);
     let args = [left, right];
     Ok(AigAndGate { id, args })
-}
-
-pub fn parse_aig_iter(mut lines: impl Iterator<Item = String>) -> eyre::Result<Aig> {
-    let header = parse_header(&lines.next().ok_or_else(|| eyre!("Missing header"))?)?;
-
-    let mut inputs = Vec::with_capacity(header.inputs as usize);
-    for _ in 0..header.inputs {
-        let input = parse_input(&lines.next().ok_or_else(|| eyre!("Missing input"))?)?;
-        ensure!(
-            input.id <= header.max,
-            "Input id {} is greater than max {}",
-            input.id,
-            header.max
-        );
-        inputs.push(input);
-    }
-
-    // TODO: parse latches
-    ensure!(header.latches == 0, "Latches are not supported");
-
-    let mut outputs = Vec::with_capacity(header.outputs as usize);
-    for _ in 0..header.outputs {
-        let output = parse_output(&lines.next().ok_or_else(|| eyre!("Missing output"))?)?;
-        ensure!(
-            output.id() <= header.max,
-            "Output id {} is greater than max {}",
-            output.id(),
-            header.max
-        );
-        outputs.push(output);
-    }
-
-    let mut ands = Vec::with_capacity(header.ands as usize);
-    for _ in 0..header.ands {
-        let and = parse_and(&lines.next().ok_or_else(|| eyre!("Missing gate"))?)?;
-        ensure!(
-            and.id <= header.max,
-            "And gate id {} is greater than max {}",
-            and.id,
-            header.max
-        );
-        ands.push(and);
-    }
-
-    let mut mapping: HashMap<u32, Node> = HashMap::new();
-    for input in inputs.iter().copied() {
-        ensure!(
-            !mapping.contains_key(&input.id),
-            "Duplicate gate id {}",
-            input.id
-        );
-        mapping.insert(input.id, Node::Input(input));
-    }
-    for and in ands.iter().copied() {
-        ensure!(
-            !mapping.contains_key(&and.id),
-            "Duplicate gate id {}",
-            and.id
-        );
-        mapping.insert(and.id, Node::AndGate(and));
-    }
-
-    let aig = Aig::new(inputs, outputs, ands, mapping);
-    Ok(aig)
-}
-
-pub fn parse_aig<P: AsRef<Path>>(path: P) -> eyre::Result<Aig> {
-    let file = File::open(path)?;
-    parse_aig_iter(BufReader::new(file).lines().map(|r| r.unwrap()))
 }
 
 #[cfg(test)]
