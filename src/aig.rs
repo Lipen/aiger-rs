@@ -105,7 +105,7 @@ impl Aig {
                 (
                     node.id(),
                     node.children()
-                        .into_iter()
+                        .iter()
                         .map(|c| c.id())
                         .collect::<Vec<_>>(),
                 )
