@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -17,6 +16,10 @@ impl Aig {
     pub fn parse_file<P: AsRef<Path>>(path: P) -> eyre::Result<Self> {
         let file = File::open(path)?;
         Self::parse_lines(BufReader::new(file).lines().map(|r| r.unwrap()))
+    }
+
+    pub fn parse_str(s: &str) -> eyre::Result<Self> {
+        Self::parse_lines(s.lines().map(|s| s.to_owned()))
     }
 
     pub fn parse_lines(mut lines: impl Iterator<Item = String>) -> eyre::Result<Self> {
@@ -49,37 +52,19 @@ impl Aig {
             outputs.push(output);
         }
 
-        let mut ands = Vec::with_capacity(header.ands as usize);
-        for _ in 0..header.ands {
-            let and = parse_and(&lines.next().ok_or_else(|| eyre!("Missing gate"))?)?;
+        let mut gates = Vec::with_capacity(header.gates as usize);
+        for _ in 0..header.gates {
+            let and = parse_and_gate(&lines.next().ok_or_else(|| eyre!("Missing gate"))?)?;
             ensure!(
                 and.id <= header.max,
-                "And gate id {} is greater than max {}",
+                "Gate id {} is greater than max {}",
                 and.id,
                 header.max
             );
-            ands.push(and);
+            gates.push(and);
         }
 
-        let mut mapping: HashMap<u32, Node> = HashMap::new();
-        for input in inputs.iter().copied() {
-            ensure!(
-                !mapping.contains_key(&input.id),
-                "Duplicate gate id {}",
-                input.id
-            );
-            mapping.insert(input.id, Node::Input(input));
-        }
-        for and in ands.iter().copied() {
-            ensure!(
-                !mapping.contains_key(&and.id),
-                "Duplicate gate id {}",
-                and.id
-            );
-            mapping.insert(and.id, Node::AndGate(and));
-        }
-
-        let aig = Aig::new(inputs, outputs, ands, mapping);
+        let aig = Aig::new(inputs, outputs, gates);
         Ok(aig)
     }
 }
@@ -95,7 +80,7 @@ struct Header {
     /// Number of outputs.
     outputs: u32,
     /// Number of AND gates.
-    ands: u32,
+    gates: u32,
 }
 
 fn parse_header(s: &str) -> eyre::Result<Header> {
@@ -121,7 +106,7 @@ fn parse_header(s: &str) -> eyre::Result<Header> {
         inputs: i,
         latches: l,
         outputs: o,
-        ands: a,
+        gates: a,
     })
 }
 
@@ -153,17 +138,17 @@ fn parse_output(s: &str) -> eyre::Result<Ref> {
     Ok(Ref::from_u32(lit))
 }
 
-fn parse_and(s: &str) -> eyre::Result<AigAndGate> {
-    fn and(s: &str) -> IResult<&str, (u32, u32, u32)> {
+fn parse_and_gate(s: &str) -> eyre::Result<AigAndGate> {
+    fn and_gate(s: &str) -> IResult<&str, (u32, u32, u32)> {
         let (s, lit) = u32_parser(s)?;
         let (s, left) = preceded(space1, u32_parser)(s)?;
         let (s, right) = preceded(space1, u32_parser)(s)?;
         Ok((s, (lit, left, right)))
     }
 
-    let (s, (lit, left, right)) = and(s).map_err(|e| e.to_owned())?;
-    ensure!(s.is_empty(), "Extra data after AND gate: {}", s);
-    ensure!(lit & 1 == 0, "AND gate literal must be even: {}", lit);
+    let (s, (lit, left, right)) = and_gate(s).map_err(|e| e.to_owned())?;
+    ensure!(s.is_empty(), "Extra data after gate: {}", s);
+    ensure!(lit & 1 == 0, "Gate literal must be even: {}", lit);
     let id = lit >> 1;
     let left = Ref::from_u32(left);
     let right = Ref::from_u32(right);
@@ -183,7 +168,7 @@ mod tests {
         assert_eq!(header.inputs, 2);
         assert_eq!(header.latches, 0);
         assert_eq!(header.outputs, 2);
-        assert_eq!(header.ands, 3);
+        assert_eq!(header.gates, 3);
     }
 
     #[test]
@@ -225,31 +210,51 @@ mod tests {
     fn test_parse_output() {
         let s = "4";
         let output = parse_output(s).unwrap();
-        assert_eq!(output.id(), 2);
-        assert_eq!(output.is_negated(), false);
+        assert_eq!(output, Ref::positive(2));
     }
 
     #[test]
     fn test_parse_output_negated() {
         let s = "7";
         let output = parse_output(s).unwrap();
-        assert_eq!(output.id(), 3);
-        assert_eq!(output.is_negated(), true);
+        assert_eq!(output, Ref::negative(3));
     }
 
     #[test]
-    fn test_parse_and() {
+    fn test_parse_and_gate() {
         let s = "8 3 4";
-        let and = parse_and(s).unwrap();
-        assert_eq!(and.id, 4);
-        assert_eq!(and.args[0], Ref::new(1, true));
-        assert_eq!(and.args[1], Ref::new(2, false));
+        let gate = parse_and_gate(s).unwrap();
+        assert_eq!(gate.id, 4);
+        assert_eq!(gate.args[0], Ref::negative(1));
+        assert_eq!(gate.args[1], Ref::positive(2));
     }
 
     #[test]
-    fn test_invalid_parse_and_with_odd_id() {
+    fn test_invalid_parse_and_gate_with_odd_id() {
         let s = "9 3 4";
-        let res = parse_and(s);
+        let res = parse_and_gate(s);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_parse_aig() {
+        let aig = Aig::parse_str(
+            "\
+aag 3 2 0 1 1
+2
+4
+6
+6 2 5",
+        )
+        .unwrap();
+        assert_eq!(aig.inputs(), &[AigInput { id: 1 }, AigInput { id: 2 }]);
+        assert_eq!(aig.outputs(), &[Ref::positive(3)]);
+        assert_eq!(
+            aig.gates(),
+            &[AigAndGate {
+                id: 3,
+                args: [Ref::positive(1), Ref::negative(2)]
+            }]
+        );
     }
 }
