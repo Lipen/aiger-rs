@@ -52,6 +52,16 @@ impl Aig {
     pub fn nodes(&self) -> impl Iterator<Item = &Node> {
         self.mapping.values()
     }
+    pub fn contains(&self, id: u32) -> bool {
+        self.mapping.contains_key(&id)
+    }
+
+    pub fn is_input(&self, id: u32) -> bool {
+        matches!(self.node(id), Node::Input(_))
+    }
+    pub fn is_gate(&self, id: u32) -> bool {
+        matches!(self.node(id), Node::AndGate(_))
+    }
 
     pub fn node(&self, id: u32) -> Node {
         self.mapping[&id]
@@ -67,16 +77,6 @@ impl Aig {
             Node::AndGate(gate) => gate,
             _ => panic!("Node with id {} is not an AND gate", id),
         }
-    }
-
-    pub fn is_input(&self, id: u32) -> bool {
-        matches!(self.node(id), Node::Input(_))
-    }
-    pub fn is_gate(&self, id: u32) -> bool {
-        matches!(self.node(id), Node::AndGate(_))
-    }
-    pub fn contains(&self, id: u32) -> bool {
-        self.mapping.contains_key(&id)
     }
 }
 
