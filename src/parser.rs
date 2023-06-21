@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use color_eyre::eyre::{ensure, eyre};
+use eyre::{ensure, eyre};
 use nom::bytes::complete::tag;
 use nom::character::complete::{space1, u32 as u32_parser};
 use nom::sequence::preceded;
@@ -27,7 +27,7 @@ struct Header {
     ands: u32,
 }
 
-fn parse_header(s: &str) -> color_eyre::Result<Header> {
+fn parse_header(s: &str) -> eyre::Result<Header> {
     fn header(s: &str) -> IResult<&str, (u32, u32, u32, u32, u32)> {
         let (s, _) = tag("aag")(s)?;
         let (s, m) = preceded(space1, u32_parser)(s)?;
@@ -54,7 +54,7 @@ fn parse_header(s: &str) -> color_eyre::Result<Header> {
     })
 }
 
-fn parse_input(s: &str) -> color_eyre::Result<AigInput> {
+fn parse_input(s: &str) -> eyre::Result<AigInput> {
     fn input(s: &str) -> IResult<&str, u32> {
         let (s, lit) = u32_parser(s)?;
         Ok((s, lit))
@@ -71,7 +71,7 @@ fn parse_latch(_s: &str) -> IResult<&str, ()> {
     todo!()
 }
 
-fn parse_output(s: &str) -> color_eyre::Result<Ref> {
+fn parse_output(s: &str) -> eyre::Result<Ref> {
     fn output(s: &str) -> IResult<&str, u32> {
         let (s, lit) = u32_parser(s)?;
         Ok((s, lit))
@@ -82,7 +82,7 @@ fn parse_output(s: &str) -> color_eyre::Result<Ref> {
     Ok(Ref::from_u32(lit))
 }
 
-fn parse_and(s: &str) -> color_eyre::Result<AigAndGate> {
+fn parse_and(s: &str) -> eyre::Result<AigAndGate> {
     fn and(s: &str) -> IResult<&str, (u32, u32, u32)> {
         let (s, lit) = u32_parser(s)?;
         let (s, left) = preceded(space1, u32_parser)(s)?;
@@ -94,11 +94,13 @@ fn parse_and(s: &str) -> color_eyre::Result<AigAndGate> {
     ensure!(s.is_empty(), "Extra data after AND gate: {}", s);
     ensure!(lit & 1 == 0, "AND gate literal must be even: {}", lit);
     let id = lit >> 1;
-    let args = [Ref::from_u32(left), Ref::from_u32(right)];
+    let left = Ref::from_u32(left);
+    let right = Ref::from_u32(right);
+    let args = [left, right];
     Ok(AigAndGate { id, args })
 }
 
-pub fn parse_aig_iter(mut lines: impl Iterator<Item = String>) -> color_eyre::Result<Aig> {
+pub fn parse_aig_iter(mut lines: impl Iterator<Item = String>) -> eyre::Result<Aig> {
     let header = parse_header(&lines.next().ok_or_else(|| eyre!("Missing header"))?)?;
 
     let mut inputs = Vec::with_capacity(header.inputs as usize);
@@ -162,7 +164,7 @@ pub fn parse_aig_iter(mut lines: impl Iterator<Item = String>) -> color_eyre::Re
     Ok(aig)
 }
 
-pub fn parse_aig<P: AsRef<Path>>(path: P) -> color_eyre::Result<Aig> {
+pub fn parse_aig<P: AsRef<Path>>(path: P) -> eyre::Result<Aig> {
     let file = File::open(path)?;
     parse_aig_iter(BufReader::new(file).lines().map(|r| r.unwrap()))
 }

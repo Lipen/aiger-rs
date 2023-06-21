@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 log = "0.4"
-color-eyre = "0.6"
+eyre = "0.6"
 nom = "7"
