@@ -26,7 +26,7 @@ where
     pub fn new(graph: &HashMap<T, Vec<T>>) -> Self {
         // Count in-degree for each node.
         let mut in_degree: HashMap<T, usize> = HashMap::new();
-        for node in graph.values().flat_map(|v| v.into_iter()) {
+        for node in graph.values().flat_map(|v| v.iter()) {
             let count = in_degree.entry(node.clone()).or_default();
             *count += 1;
         }
@@ -116,7 +116,7 @@ where
         }
 
         // Find all items without deps and add them explicitly to the map:
-        for item in graph.values().flat_map(|v| v.into_iter()) {
+        for item in graph.values().flat_map(|v| v.iter()) {
             data.entry(item.clone()).or_default();
         }
 
