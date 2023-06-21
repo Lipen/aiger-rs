@@ -9,7 +9,7 @@ use nom::sequence::preceded;
 use nom::IResult;
 
 use crate::aig::Aig;
-use crate::node::{AigAndGate, AigInput, Node};
+use crate::node::{AigAndGate, AigInput};
 use crate::reference::Ref;
 
 impl Aig {
