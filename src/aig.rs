@@ -129,12 +129,22 @@ mod tests {
         let outputs = vec![Ref::positive(g3.id)];
         let gates = vec![g1, g2, g3];
         let aig = Aig::new(inputs, outputs, gates);
-        let mut layers = aig.layers_backward().collect::<Vec<_>>();
-        assert_eq!(layers.len(), 4);
-        layers[0].sort();
-        assert_eq!(layers[0], vec![1, 2, 3]);
-        assert_eq!(layers[1], vec![4]);
-        assert_eq!(layers[2], vec![5]);
-        assert_eq!(layers[3], vec![6]);
+
+        let mut layers_forward = aig.layers_forward().collect::<Vec<_>>();
+        assert_eq!(layers_forward.len(), 4);
+        assert_eq!(layers_forward[0], vec![6]);
+        assert_eq!(layers_forward[1], vec![5]);
+        layers_forward[2].sort();
+        assert_eq!(layers_forward[2], vec![3, 4]);
+        layers_forward[3].sort();
+        assert_eq!(layers_forward[3], vec![1, 2]);
+
+        let mut layers_backward = aig.layers_backward().collect::<Vec<_>>();
+        assert_eq!(layers_backward.len(), 4);
+        layers_backward[0].sort();
+        assert_eq!(layers_backward[0], vec![1, 2, 3]);
+        assert_eq!(layers_backward[1], vec![4]);
+        assert_eq!(layers_backward[2], vec![5]);
+        assert_eq!(layers_backward[3], vec![6]);
     }
 }
