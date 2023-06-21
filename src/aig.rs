@@ -82,11 +82,17 @@ impl Aig {
 
 impl Aig {
     pub fn layers_forward(&self) -> impl Iterator<Item = Vec<u32>> {
-        toposort_forward(&self.dependency_graph())
+        toposort_forward(&self.dependency_graph()).map(|mut xs| {
+            xs.sort();
+            xs
+        })
     }
 
     pub fn layers_backward(&self) -> impl Iterator<Item = Vec<u32>> {
-        toposort_backward(&self.dependency_graph())
+        toposort_backward(&self.dependency_graph()).map(|mut xs| {
+            xs.sort();
+            xs
+        })
     }
 
     fn dependency_graph(&self) -> HashMap<u32, Vec<u32>> {
@@ -134,14 +140,11 @@ mod tests {
         assert_eq!(layers_forward.len(), 4);
         assert_eq!(layers_forward[0], vec![6]);
         assert_eq!(layers_forward[1], vec![5]);
-        layers_forward[2].sort();
         assert_eq!(layers_forward[2], vec![3, 4]);
-        layers_forward[3].sort();
         assert_eq!(layers_forward[3], vec![1, 2]);
 
         let mut layers_backward = aig.layers_backward().collect::<Vec<_>>();
         assert_eq!(layers_backward.len(), 4);
-        layers_backward[0].sort();
         assert_eq!(layers_backward[0], vec![1, 2, 3]);
         assert_eq!(layers_backward[1], vec![4]);
         assert_eq!(layers_backward[2], vec![5]);
