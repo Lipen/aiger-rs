@@ -20,12 +20,17 @@ pub struct AigAndGate {
 }
 
 impl Node {
-    pub fn children(&self) -> &[Ref] {
+    pub const fn id(&self) -> u32 {
         match self {
-            Node::Input { .. } => &[],
-            Node::AndGate(AigAndGate { args, .. }) => args,
-            // Node::True => &[],
-            // Node::False => &[],
+            Node::Input(input) => input.id,
+            Node::AndGate(gate) => gate.id,
+        }
+    }
+
+    pub const fn children(&self) -> &[Ref] {
+        match self {
+            Node::Input(_) => &[],
+            Node::AndGate(gate) => &gate.args,
         }
     }
 }
