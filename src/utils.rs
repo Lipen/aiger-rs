@@ -177,7 +177,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_toposort() {
+    fn test_forward_toposort() {
         let mut graph = HashMap::new();
         graph.insert("g1", vec!["x1", "x2"]);
         graph.insert("g2", vec!["g1", "x3"]);
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Circular dependency detected")]
-    fn test_toposort_cycle() {
+    fn test_forward_toposort_cycle() {
         let mut graph = HashMap::new();
         graph.insert("x1", vec!["x2"]);
         graph.insert("x2", vec!["x3"]);
