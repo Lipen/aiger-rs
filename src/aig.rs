@@ -168,14 +168,14 @@ mod tests {
         let gates = vec![g1, g2, g3];
         let aig = Aig::new(inputs, outputs, gates);
 
-        let mut layers_input = aig.layers_input().collect::<Vec<_>>();
+        let layers_input = aig.layers_input().collect::<Vec<_>>();
         assert_eq!(layers_input.len(), 4);
         assert_eq!(layers_input[0], vec![1, 2, 3]);
         assert_eq!(layers_input[1], vec![4]);
         assert_eq!(layers_input[2], vec![5]);
         assert_eq!(layers_input[3], vec![6]);
 
-        let mut layers_output = aig.layers_output().collect::<Vec<_>>();
+        let layers_output = aig.layers_output().collect::<Vec<_>>();
         assert_eq!(layers_output.len(), 4);
         assert_eq!(layers_output[0], vec![6]);
         assert_eq!(layers_output[1], vec![5]);
