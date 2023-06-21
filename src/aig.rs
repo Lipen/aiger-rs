@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
 use crate::node::{AigAndGate, AigInput, Node};
 use crate::reference::Ref;
@@ -36,6 +37,18 @@ impl Aig {
             gates,
             mapping,
         }
+    }
+}
+
+impl Display for Aig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Aig(inputs: {}, outputs: {}, gates: {})",
+            self.inputs.len(),
+            self.outputs.len(),
+            self.gates.len()
+        )
     }
 }
 
@@ -104,10 +117,7 @@ impl Aig {
             .map(|node| {
                 (
                     node.id(),
-                    node.children()
-                        .iter()
-                        .map(|c| c.id())
-                        .collect::<Vec<_>>(),
+                    node.children().iter().map(|c| c.id()).collect::<Vec<_>>(),
                 )
             })
             .collect()
