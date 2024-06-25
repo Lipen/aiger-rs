@@ -1,6 +1,7 @@
 pub mod aig;
+pub mod aiger;
 pub mod node;
 pub mod parse;
 pub mod reference;
 
-pub(crate) mod utils;
+pub(crate) mod toposort;

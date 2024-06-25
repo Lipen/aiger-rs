@@ -3,40 +3,53 @@ use std::fmt::{Display, Formatter};
 
 use crate::node::{AigAndGate, AigInput, Node};
 use crate::reference::Ref;
-use crate::utils::{toposort_backward, toposort_forward};
+use crate::toposort::{toposort_backward, toposort_forward};
 
 /// And-Inverter Graph.
 pub struct Aig {
-    inputs: Vec<AigInput>,
+    nodes: HashMap<u32, Node>,
+    inputs: Vec<u32>,
     outputs: Vec<Ref>,
-    gates: Vec<AigAndGate>,
-    mapping: HashMap<u32, Node>,
 }
 
 impl Aig {
-    pub fn new(inputs: Vec<AigInput>, outputs: Vec<Ref>, gates: Vec<AigAndGate>) -> Self {
-        let mut mapping: HashMap<u32, Node> = HashMap::new();
-        for &input in inputs.iter() {
-            let old = mapping.insert(input.id, Node::Input(input));
-            assert!(old.is_none(), "Duplicate input id {}", input.id);
-        }
-        for &gate in gates.iter() {
-            let old = mapping.insert(gate.id, Node::AndGate(gate));
-            assert!(old.is_none(), "Duplicate gate id {}", gate.id);
-        }
-        for output in outputs.iter() {
-            assert!(
-                mapping.contains_key(&output.id()),
-                "Output id {} does not exist",
-                output.id()
-            );
-        }
+    pub const fn new(nodes: HashMap<u32, Node>, inputs: Vec<u32>, outputs: Vec<Ref>) -> Self {
         Self {
+            nodes,
             inputs,
             outputs,
-            gates,
-            mapping,
         }
+    }
+}
+
+impl Default for Aig {
+    fn default() -> Self {
+        Self {
+            nodes: HashMap::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }
+    }
+}
+
+impl Aig {
+    pub fn add_input(&mut self, id: u32) {
+        assert!(!self.nodes.contains_key(&id));
+        assert!(!self.inputs.contains(&id));
+        self.nodes.insert(id, Node::input(id));
+        self.inputs.push(id);
+    }
+
+    pub fn add_output(&mut self, output: Ref) {
+        self.outputs.push(output);
+    }
+
+    pub fn add_and_gate(&mut self, id: u32, args: [Ref; 2]) {
+        assert!(!self.nodes.contains_key(&id));
+        for arg in args.iter() {
+            assert!(self.nodes.contains_key(&arg.id()));
+        }
+        self.nodes.insert(id, Node::and_gate(id, args));
     }
 }
 
@@ -44,48 +57,44 @@ impl Display for Aig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Aig(inputs: {}, outputs: {}, gates: {})",
+            "Aig(inputs: {}, outputs: {})",
             self.inputs.len(),
             self.outputs.len(),
-            self.gates.len()
         )
     }
 }
 
 impl Aig {
-    pub fn inputs(&self) -> &[AigInput] {
+    pub fn inputs(&self) -> &[u32] {
         &self.inputs
     }
     pub fn outputs(&self) -> &[Ref] {
         &self.outputs
     }
-    pub fn gates(&self) -> &[AigAndGate] {
-        &self.gates
-    }
-    pub fn nodes(&self) -> impl Iterator<Item = &Node> {
-        self.mapping.values()
+    pub fn nodes(&self) -> &HashMap<u32, Node> {
+        &self.nodes
     }
     pub fn contains(&self, id: u32) -> bool {
-        self.mapping.contains_key(&id)
+        self.nodes.contains_key(&id)
     }
 
     pub fn is_input(&self, id: u32) -> bool {
-        matches!(self.node(id), Node::Input(_))
+        matches!(self.node(id), Node::Input(..))
     }
     pub fn is_gate(&self, id: u32) -> bool {
-        matches!(self.node(id), Node::AndGate(_))
+        matches!(self.node(id), Node::AndGate(..))
     }
 
-    pub fn node(&self, id: u32) -> Node {
-        self.mapping[&id]
+    pub fn node(&self, id: u32) -> &Node {
+        &self.nodes[&id]
     }
     pub fn input(&self, id: u32) -> AigInput {
         match self.node(id) {
-            Node::Input(input) => input,
+            Node::Input(input) => *input,
             _ => panic!("Node with id {} is not an input", id),
         }
     }
-    pub fn gate(&self, id: u32) -> AigAndGate {
+    pub fn gate(&self, id: u32) -> &AigAndGate {
         match self.node(id) {
             Node::AndGate(gate) => gate,
             _ => panic!("Node with id {} is not an AND gate", id),
@@ -93,6 +102,7 @@ impl Aig {
     }
 }
 
+// Layers
 impl Aig {
     /// Return the iterator of 'backward' layers in the AIG.
     /// The first 'backward' layer consists of all inputs.
@@ -114,9 +124,10 @@ impl Aig {
 
     fn dependency_graph(&self) -> HashMap<u32, Vec<u32>> {
         self.nodes()
-            .map(|node| {
+            .iter()
+            .map(|(&id, node)| {
                 (
-                    node.id(),
+                    id,
                     node.children().iter().map(|c| c.id()).collect::<Vec<_>>(),
                 )
             })
@@ -124,6 +135,7 @@ impl Aig {
     }
 }
 
+// Evaluation
 impl Aig {
     pub fn eval(&self, input_values: Vec<bool>) -> HashMap<u32, bool> {
         assert_eq!(input_values.len(), self.inputs.len());
@@ -133,8 +145,11 @@ impl Aig {
         for layer in self.layers_input() {
             for id in layer {
                 match self.node(id) {
+                    Node::Constant(value) => {
+                        values.insert(id, *value);
+                    }
                     Node::Input(input) => {
-                        let i = self.inputs.iter().position(|&x| x == input).unwrap();
+                        let i = self.inputs.iter().position(|&x| x == input.id).unwrap();
                         let value = input_values[i];
                         values.insert(id, value);
                     }
@@ -158,25 +173,15 @@ mod tests {
 
     #[test]
     fn test_layers() {
-        let x1 = AigInput { id: 1 };
-        let x2 = AigInput { id: 2 };
-        let x3 = AigInput { id: 3 };
-        let g1 = AigAndGate {
-            id: 4,
-            args: [Ref::positive(x1.id), Ref::positive(x2.id)],
-        };
-        let g2 = AigAndGate {
-            id: 5,
-            args: [Ref::positive(g1.id), Ref::positive(x3.id)],
-        };
-        let g3 = AigAndGate {
-            id: 6,
-            args: [Ref::positive(x1.id), Ref::positive(g2.id)],
-        };
-        let inputs = vec![x1, x2, x3];
-        let outputs = vec![Ref::positive(g3.id)];
-        let gates = vec![g1, g2, g3];
-        let aig = Aig::new(inputs, outputs, gates);
+        let mut aig = Aig::default();
+
+        aig.add_input(1);
+        aig.add_input(2);
+        aig.add_input(3);
+        aig.add_and_gate(4, [Ref::positive(1), Ref::positive(2)]);
+        aig.add_and_gate(5, [Ref::positive(4), Ref::positive(3)]);
+        aig.add_and_gate(6, [Ref::positive(1), Ref::positive(5)]);
+        aig.add_output(Ref::positive(6));
 
         let layers_input = aig.layers_input().collect::<Vec<_>>();
         assert_eq!(layers_input.len(), 4);
@@ -195,31 +200,25 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        let x1 = AigInput { id: 1 };
-        let x2 = AigInput { id: 2 };
-        let x3 = AigInput { id: 3 };
+        let mut aig = Aig::default();
+
+        aig.add_input(1);
+        aig.add_input(2);
+        aig.add_input(3);
+
         // g1 = x1 and x2
-        let g1 = AigAndGate {
-            id: 4,
-            args: [Ref::positive(x1.id), Ref::positive(x2.id)],
-        };
+        aig.add_and_gate(4, [Ref::positive(1), Ref::positive(2)]);
         // g2 = ~g1 and x3
-        let g2 = AigAndGate {
-            id: 5,
-            args: [Ref::negative(g1.id), Ref::positive(x3.id)],
-        };
+        aig.add_and_gate(5, [Ref::negative(4), Ref::positive(3)]);
         // g3 = x1 and ~g2
-        let g3 = AigAndGate {
-            id: 6,
-            args: [Ref::positive(x1.id), Ref::negative(g2.id)],
-        };
-        let inputs = vec![x1, x2, x3];
-        let outputs = vec![Ref::positive(g3.id)];
-        let gates = vec![g1, g2, g3];
-        let aig = Aig::new(inputs, outputs, gates);
+        aig.add_and_gate(6, [Ref::positive(1), Ref::negative(5)]);
+
+        aig.add_output(Ref::positive(6));
 
         let input_values = vec![true, false, true]; // [x1, x2, x3]
+        println!("input: {:?}", input_values);
         let values = aig.eval(input_values);
+        println!("values: {:?}", values);
         assert_eq!(values[&1], true); // x1
         assert_eq!(values[&2], false); // x2
         assert_eq!(values[&3], true); // x3
