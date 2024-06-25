@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 
 use crate::node::{AigAndGate, AigInput, Node};
@@ -137,10 +137,10 @@ impl Aig {
 
 // Evaluation
 impl Aig {
-    pub fn eval(&self, input_values: Vec<bool>) -> HashMap<u32, bool> {
+    pub fn eval(&self, input_values: Vec<bool>) -> BTreeMap<u32, bool> {
         assert_eq!(input_values.len(), self.inputs.len());
 
-        let mut values: HashMap<u32, bool> = HashMap::new();
+        let mut values = BTreeMap::new();
 
         for layer in self.layers_input() {
             for id in layer {
