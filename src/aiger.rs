@@ -242,8 +242,8 @@ pub struct Reader<T> {
     header: Header,
 }
 
-impl<T: Read> Reader<T> {
-    pub fn from_reader(reader: T) -> Result<Reader<T>, AigerError> {
+impl<R: Read> Reader<R> {
+    pub fn from_reader(reader: R) -> Result<Reader<R>, AigerError> {
         use std::io::BufRead;
         let reader = BufReader::new(reader);
         let mut lines = reader.lines();
@@ -258,7 +258,7 @@ impl<T: Read> Reader<T> {
         &self.header
     }
 
-    pub fn records(self) -> RecordsIter<T> {
+    pub fn records(self) -> RecordsIter<R> {
         RecordsIter::new(self.lines, self.header)
     }
 }
