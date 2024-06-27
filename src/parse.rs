@@ -71,11 +71,11 @@ mod tests {
         ));
         assert_eq!(aig.inputs(), &[1, 2]);
         assert_eq!(aig.outputs(), &[Ref::positive(3)]);
-        assert_eq!(aig.node(1), &Node::Input(AigInput { id: 1 }));
-        assert_eq!(aig.node(2), &Node::Input(AigInput { id: 2 }));
+        assert_eq!(aig.node(1), Node::Input(AigInput { id: 1 }));
+        assert_eq!(aig.node(2), Node::Input(AigInput { id: 2 }));
         assert_eq!(
             aig.gate(3),
-            &AigAndGate {
+            AigAndGate {
                 id: 3,
                 args: [Ref::positive(1), Ref::negative(2)]
             }

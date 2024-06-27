@@ -1,6 +1,6 @@
 use crate::reference::Ref;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Node {
     Constant(bool), // false=0, true=1
     Input(AigInput),
@@ -12,7 +12,7 @@ pub struct AigInput {
     pub id: u32,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct AigAndGate {
     pub id: u32,
     pub args: [Ref; 2],

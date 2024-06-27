@@ -32,27 +32,6 @@ impl Default for Aig {
     }
 }
 
-impl Aig {
-    pub fn add_input(&mut self, id: u32) {
-        assert!(!self.nodes.contains_key(&id));
-        assert!(!self.inputs.contains(&id));
-        self.nodes.insert(id, Node::input(id));
-        self.inputs.push(id);
-    }
-
-    pub fn add_output(&mut self, output: Ref) {
-        self.outputs.push(output);
-    }
-
-    pub fn add_and_gate(&mut self, id: u32, args: [Ref; 2]) {
-        assert!(!self.nodes.contains_key(&id));
-        for arg in args.iter() {
-            assert!(self.nodes.contains_key(&arg.id()));
-        }
-        self.nodes.insert(id, Node::and_gate(id, args));
-    }
-}
-
 impl Display for Aig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -74,31 +53,67 @@ impl Aig {
     pub fn nodes(&self) -> &HashMap<u32, Node> {
         &self.nodes
     }
+
+    pub fn is_constant(&self, id: u32) -> bool {
+        id == 0 || id == 1
+    }
+    pub fn is_input(&self, id: u32) -> bool {
+        if self.is_constant(id) {
+            return false;
+        }
+        matches!(self.nodes[&id], Node::Input(..))
+    }
+    pub fn is_gate(&self, id: u32) -> bool {
+        if self.is_constant(id) {
+            return false;
+        }
+        matches!(self.nodes[&id], Node::AndGate(..))
+    }
+
     pub fn contains(&self, id: u32) -> bool {
+        if self.is_constant(id) {
+            return true;
+        }
         self.nodes.contains_key(&id)
     }
 
-    pub fn is_input(&self, id: u32) -> bool {
-        matches!(self.node(id), Node::Input(..))
-    }
-    pub fn is_gate(&self, id: u32) -> bool {
-        matches!(self.node(id), Node::AndGate(..))
-    }
-
-    pub fn node(&self, id: u32) -> &Node {
-        &self.nodes[&id]
+    pub fn node(&self, id: u32) -> Node {
+        match id {
+            0 => Node::constant(false),
+            1 => Node::constant(true),
+            _ => self.nodes[&id],
+        }
     }
     pub fn input(&self, id: u32) -> AigInput {
         match self.node(id) {
-            Node::Input(input) => *input,
+            Node::Input(input) => input,
             _ => panic!("Node with id {} is not an input", id),
         }
     }
-    pub fn gate(&self, id: u32) -> &AigAndGate {
+    pub fn gate(&self, id: u32) -> AigAndGate {
         match self.node(id) {
             Node::AndGate(gate) => gate,
             _ => panic!("Node with id {} is not an AND gate", id),
         }
+    }
+
+    pub fn add_input(&mut self, id: u32) {
+        assert!(!self.nodes.contains_key(&id));
+        assert!(!self.inputs.contains(&id));
+        self.nodes.insert(id, Node::input(id));
+        self.inputs.push(id);
+    }
+
+    pub fn add_output(&mut self, output: Ref) {
+        self.outputs.push(output);
+    }
+
+    pub fn add_and_gate(&mut self, id: u32, args: [Ref; 2]) {
+        assert!(!self.nodes.contains_key(&id));
+        for arg in args.iter() {
+            assert!(self.nodes.contains_key(&arg.id()));
+        }
+        self.nodes.insert(id, Node::and_gate(id, args));
     }
 }
 
@@ -146,7 +161,7 @@ impl Aig {
             for id in layer {
                 match self.node(id) {
                     Node::Constant(value) => {
-                        values.insert(id, *value);
+                        values.insert(id, value);
                     }
                     Node::Input(input) => {
                         let i = self.inputs.iter().position(|&x| x == input.id).unwrap();

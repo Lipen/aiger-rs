@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::ops::Neg;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct Ref(pub(crate) u32);
+pub struct Ref(u32);
 
 impl Ref {
     pub const fn new(id: u32, negated: bool) -> Self {
@@ -13,6 +13,13 @@ impl Ref {
     }
     pub const fn negative(id: u32) -> Self {
         Self::new(id, true)
+    }
+
+    pub const fn zero() -> Self {
+        Self(0)
+    }
+    pub const fn one() -> Self {
+        Self(1)
     }
 
     pub const fn raw(self) -> u32 {
