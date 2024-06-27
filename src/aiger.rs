@@ -13,13 +13,15 @@ impl Literal {
     }
 
     pub const fn from_variable(variable: u32, is_negated: bool) -> Self {
-        Self::new(variable * 2 + is_negated as u32)
+        Self::new((variable << 1) + is_negated as u32)
     }
 
+    pub const fn raw(&self) -> u32 {
+        self.0
+    }
     pub const fn index(&self) -> u32 {
-        self.0 / 2
+        self.0 >> 1
     }
-
     pub const fn is_negated(&self) -> bool {
         self.0 & 1 != 0
     }
