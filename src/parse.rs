@@ -14,7 +14,6 @@ impl Aig {
 
     pub fn from_reader(reader: impl Read) -> eyre::Result<Self> {
         let reader = Reader::from_reader(reader)?;
-        // let header = reader.header().clone();
         let mut aig = Aig::default();
         for record in reader.records() {
             let record = record?;
@@ -27,11 +26,11 @@ impl Aig {
                     todo!("latches are not supported yet")
                 }
                 Record::Output(output) => {
-                    aig.add_output(Ref::from_literal(output));
+                    aig.add_output(lit2ref(output));
                 }
                 Record::AndGate { output, inputs } => {
                     assert!(!output.is_negated());
-                    let args = [Ref::from_literal(inputs[0]), Ref::from_literal(inputs[1])];
+                    let args = [lit2ref(inputs[0]), lit2ref(inputs[1])];
                     aig.add_and_gate(output.index(), args);
                 }
                 Record::Symbol { .. } => {
@@ -43,10 +42,8 @@ impl Aig {
     }
 }
 
-impl Ref {
-    pub const fn from_literal(lit: Literal) -> Self {
-        Self::new(lit.index(), lit.is_negated())
-    }
+const fn lit2ref(lit: Literal) -> Ref {
+    Ref::new(lit.index(), lit.is_negated())
 }
 
 #[cfg(test)]

@@ -54,35 +54,31 @@ impl Aig {
         &self.nodes
     }
 
-    pub fn is_constant(&self, id: u32) -> bool {
-        id == 0 || id == 1
-    }
     pub fn is_input(&self, id: u32) -> bool {
-        if self.is_constant(id) {
+        if id == 0 {
             return false;
         }
         matches!(self.nodes[&id], Node::Input(..))
     }
     pub fn is_gate(&self, id: u32) -> bool {
-        if self.is_constant(id) {
+        if id == 0 {
             return false;
         }
         matches!(self.nodes[&id], Node::AndGate(..))
     }
 
     pub fn contains(&self, id: u32) -> bool {
-        if self.is_constant(id) {
+        if id == 0 {
             return true;
         }
         self.nodes.contains_key(&id)
     }
 
     pub fn node(&self, id: u32) -> Node {
-        match id {
-            0 => Node::constant(false),
-            1 => Node::constant(true),
-            _ => self.nodes[&id],
+        if id == 0 {
+            return Node::Zero;
         }
+        self.nodes[&id]
     }
     pub fn input(&self, id: u32) -> AigInput {
         match self.node(id) {
@@ -160,8 +156,8 @@ impl Aig {
         for layer in self.layers_input() {
             for id in layer {
                 match self.node(id) {
-                    Node::Constant(value) => {
-                        values.insert(id, value);
+                    Node::Zero => {
+                        values.insert(id, false);
                     }
                     Node::Input(input) => {
                         let i = self.inputs.iter().position(|&x| x == input.id).unwrap();
