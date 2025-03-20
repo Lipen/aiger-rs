@@ -17,4 +17,4 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 log = "0.4"
 eyre = "0.6"
-pyo3 = { version = "0.24", optional = true, features = ["extension-module", "eyre"] }
+pyo3 = { version = "0.24", optional = true, features = ["extension-module", "abi3-py37", "eyre"] }
