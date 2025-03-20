@@ -94,7 +94,7 @@ impl Aig {
     }
 
     pub fn add_input(&mut self, id: u32) {
-        assert!(!self.nodes.contains_key(&id));
+        assert!(!self.contains(id));
         assert!(!self.inputs.contains(&id));
         self.nodes.insert(id, Node::input(id));
         self.inputs.push(id);
@@ -105,7 +105,7 @@ impl Aig {
     }
 
     pub fn add_and_gate(&mut self, id: u32, args: [Ref; 2]) {
-        assert!(!self.nodes.contains_key(&id));
+        assert!(!self.contains(id));
         // NOTE: In some AIGER files, the gates are NOT defined in the topological order,
         //       so the following assert might fail.
         // for arg in args.iter() {
