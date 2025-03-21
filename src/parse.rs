@@ -2,14 +2,18 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use eyre::WrapErr;
+
 use crate::aig::Aig;
 use crate::aiger::{Literal, Reader, Record};
 use crate::reference::Ref;
 
 impl Aig {
     pub fn from_file<P: AsRef<Path>>(path: P) -> eyre::Result<Self> {
-        log::debug!("Reading AIG from {}", path.as_ref().display());
-        let file = File::open(path)?;
+        let path = path.as_ref();
+        log::debug!("Reading AIG from {}", path.display());
+        let file =
+            File::open(path).wrap_err_with(|| format!("Failed to open {}", path.display()))?;
         Self::from_reader(file)
     }
 
