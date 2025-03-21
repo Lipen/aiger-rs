@@ -8,6 +8,7 @@ use crate::reference::Ref;
 
 impl Aig {
     pub fn from_file<P: AsRef<Path>>(path: P) -> eyre::Result<Self> {
+        log::debug!("Reading AIG from {}", path.as_ref().display());
         let file = File::open(path)?;
         Self::from_reader(file)
     }
