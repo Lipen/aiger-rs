@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+
 use pyo3::prelude::*;
+
 use crate::aig::Aig;
 
 #[pyclass(name = "Aig", str)]
@@ -37,7 +39,11 @@ impl PyAig {
     }
 
     pub fn nodes(&self) -> HashMap<u32, Vec<i32>> {
-        self.inner.nodes().iter().map(|(&k, v)| (k, v.children().iter().map(|r| r.get()).collect())).collect()
+        self.inner
+            .nodes()
+            .iter()
+            .map(|(&k, v)| (k, v.children().iter().map(|r| r.get()).collect()))
+            .collect()
     }
 
     pub fn children(&self, id: u32) -> Vec<i32> {
