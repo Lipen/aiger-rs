@@ -11,6 +11,10 @@ on:
         type: boolean
         default: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   linux:
     runs-on: ubuntu-24.04
