@@ -182,4 +182,4 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --non-interactive --repository-url https://test.pypi.org/legacy/ --skip-existing wheels-*/*
+          args: --non-interactive --repository-url="https://test.pypi.org/legacy/" --skip-existing wheels-*/*
