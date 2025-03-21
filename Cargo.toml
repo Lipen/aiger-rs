@@ -14,12 +14,12 @@ python = ["pyo3", "pyo3-log"]
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[dependencies]
-log = "0.4"
-eyre = "0.6"
-pyo3-log = { version = "0.12", optional = true }
-
 [dependencies.pyo3]
 version = "0.23"
 optional = true
 features = ["extension-module", "abi3", "abi3-py37", "eyre"]
+
+[dependencies]
+log = "0.4"
+eyre = "0.6"
+pyo3-log = { version = "0.12", optional = true }
