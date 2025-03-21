@@ -1,6 +1,6 @@
 [package]
 name = "aigerox"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Konstantin Chukharev <lipen00@gmail.com>"]
 description = "A Rust library for working with AIGs (And-Inverted Graphs) and AIGER files."
 repository = "https://github.com/Lipen/aiger-rs"
