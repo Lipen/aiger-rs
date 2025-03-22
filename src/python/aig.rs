@@ -25,8 +25,8 @@ impl PyAig {
     }
 
     #[staticmethod]
-    pub fn from_string(input: &str) -> eyre::Result<Self> {
-        let aig = Aig::from_reader(input.as_bytes())?;
+    pub fn parse(input: &str) -> eyre::Result<Self> {
+        let aig = Aig::parse(input.as_bytes())?;
         Ok(PyAig { inner: aig })
     }
 

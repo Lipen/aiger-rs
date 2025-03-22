@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::io;
-use std::io::{BufRead, BufReader, Lines, Read};
+use std::io::{BufRead, Lines};
 use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -244,13 +244,12 @@ impl From<io::Error> for AigerError {
 
 /// A reader for AIGER files.
 pub struct Reader<R> {
-    lines: Lines<BufReader<R>>,
+    lines: Lines<R>,
     header: Header,
 }
 
-impl<R: Read> Reader<R> {
-    pub fn from_reader(reader: R) -> Result<Reader<R>> {
-        let reader = BufReader::new(reader);
+impl<R: BufRead> Reader<R> {
+    pub fn new(reader: R) -> Result<Reader<R>> {
         let mut lines = reader.lines();
 
         let header_line = lines.next().ok_or(AigerError::InvalidHeader)??;
@@ -258,7 +257,9 @@ impl<R: Read> Reader<R> {
 
         Ok(Reader { lines, header })
     }
+}
 
+impl<R> Reader<R> {
     pub fn header(&self) -> &Header {
         &self.header
     }
@@ -270,7 +271,7 @@ impl<R: Read> Reader<R> {
 
 /// An iterator over the records in an AIGER file.
 pub struct RecordsIter<R> {
-    lines: Lines<BufReader<R>>,
+    lines: Lines<R>,
     header: Header,
     remaining_inputs: usize,
     remaining_latches: usize,
@@ -279,8 +280,8 @@ pub struct RecordsIter<R> {
     comment: bool,
 }
 
-impl<R: Read> RecordsIter<R> {
-    fn new(lines: Lines<BufReader<R>>, header: Header) -> RecordsIter<R> {
+impl<R> RecordsIter<R> {
+    fn new(lines: Lines<R>, header: Header) -> RecordsIter<R> {
         RecordsIter {
             lines,
             remaining_inputs: header.i,
@@ -322,7 +323,7 @@ impl<R: Read> RecordsIter<R> {
     }
 }
 
-impl<R: Read> Iterator for RecordsIter<R> {
+impl<R: BufRead> Iterator for RecordsIter<R> {
     type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -363,7 +364,7 @@ mod tests {
     }
 
     fn make_reader(input: &str) -> Result<Reader<&[u8]>> {
-        Reader::from_reader(input.as_bytes())
+        Reader::new(input.as_bytes())
     }
 
     #[test]

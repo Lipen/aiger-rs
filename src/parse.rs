@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 use eyre::WrapErr;
@@ -14,11 +14,11 @@ impl Aig {
         log::debug!("Reading AIG from {}", path.display());
         let f = File::open(path).wrap_err_with(|| format!("Failed to open {}", path.display()))?;
         let f = BufReader::new(f);
-        Self::from_reader(f)
+        Self::parse(f)
     }
 
-    pub fn from_reader(reader: impl Read) -> eyre::Result<Self> {
-        let reader = Reader::from_reader(reader)?;
+    pub fn parse(r: impl BufRead) -> eyre::Result<Self> {
+        let reader = Reader::new(r)?;
         let mut aig = Aig::default();
         for record in reader.records() {
             let record = record?;
@@ -62,7 +62,7 @@ mod tests {
     use super::*;
 
     fn parse_aig(input: &str) -> Aig {
-        Aig::from_reader(input.as_bytes()).unwrap()
+        Aig::parse(input.as_bytes()).unwrap()
     }
 
     #[test]
