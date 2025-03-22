@@ -116,7 +116,7 @@ impl Record {
 
     fn parse_latch(literals: &[Literal]) -> Result<Record> {
         match literals {
-            &[id, next] => Ok(Record::Latch { id: id, next }),
+            &[id, next] => Ok(Record::Latch { id, next }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
