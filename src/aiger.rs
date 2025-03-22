@@ -86,14 +86,14 @@ pub enum Record {
     Input {
         id: Literal,
     },
-    Output {
-        id: Literal,
-    },
     Latch {
         /// The current state.
         id: Literal,
         /// The next state.
         next: Literal,
+    },
+    Output {
+        id: Literal,
     },
     AndGate {
         id: Literal,
