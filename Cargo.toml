@@ -23,3 +23,6 @@ pyo3-log = { version = "0.12", optional = true }
 version = "0.23"
 optional = true
 features = ["extension-module", "abi3", "abi3-py37", "eyre"]
+
+[dev-dependencies]
+indoc = "2"

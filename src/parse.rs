@@ -59,6 +59,8 @@ const fn lit2ref(lit: Literal) -> Ref {
 mod tests {
     use crate::node::{AigAndGate, AigInput, Node};
 
+    use indoc::indoc;
+
     use super::*;
 
     fn parse_aig(input: &str) -> Aig {
@@ -67,14 +69,14 @@ mod tests {
 
     #[test]
     fn test_parse_aig() {
-        #[rustfmt::skip]
-        let aig = parse_aig(concat!(
-        "aag 3 2 0 1 1\n",
-        "2\n",
-        "4\n",
-        "6\n",
-        "6 2 5\n",
-        ));
+        let input = indoc! {"
+            aag 3 2 0 1 1
+            2
+            4
+            6
+            6 2 5
+        "};
+        let aig = parse_aig(input);
         assert_eq!(aig.inputs(), &[1, 2]);
         assert_eq!(aig.outputs(), &[Ref::positive(3)]);
         assert_eq!(aig.node(1), Node::Input(AigInput { id: 1 }));
