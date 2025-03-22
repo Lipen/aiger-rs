@@ -21,6 +21,7 @@ impl Aig {
     }
 
     pub fn write_to_string(&self) -> eyre::Result<String> {
+        log::debug!("Writing AIG to string");
         let mut buf = Vec::new();
         self.write(&mut buf)?;
         let s = String::from_utf8(buf)?;
