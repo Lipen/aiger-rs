@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::io;
-use std::io::{BufReader, Lines, Read};
+use std::io::{BufRead, BufReader, Lines, Read};
 use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -246,7 +246,6 @@ pub struct Reader<T> {
 
 impl<R: Read> Reader<R> {
     pub fn from_reader(reader: R) -> Result<Reader<R>, AigerError> {
-        use std::io::BufRead;
         let reader = BufReader::new(reader);
         let mut lines = reader.lines();
 
