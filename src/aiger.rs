@@ -166,11 +166,11 @@ impl Record {
 
     fn validate(self, header: &Header) -> Result<Self> {
         match &self {
-            Record::Input { id: input } => {
-                if input.index() > header.m as u32 {
+            Record::Input { id } => {
+                if id.index() > header.m as u32 {
                     return Err(AigerError::LiteralOutOfRange);
                 }
-                if input.is_negated() {
+                if id.is_negated() {
                     return Err(AigerError::InvalidInverted);
                 }
             }
