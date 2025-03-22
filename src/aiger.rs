@@ -243,8 +243,8 @@ impl From<io::Error> for AigerError {
 }
 
 /// A reader for AIGER files.
-pub struct Reader<T> {
-    lines: Lines<BufReader<T>>,
+pub struct Reader<R> {
+    lines: Lines<BufReader<R>>,
     header: Header,
 }
 
@@ -269,8 +269,8 @@ impl<R: Read> Reader<R> {
 }
 
 /// An iterator over the records in an AIGER file.
-pub struct RecordsIter<T> {
-    lines: Lines<BufReader<T>>,
+pub struct RecordsIter<R> {
+    lines: Lines<BufReader<R>>,
     header: Header,
     remaining_inputs: usize,
     remaining_latches: usize,
@@ -279,8 +279,8 @@ pub struct RecordsIter<T> {
     comment: bool,
 }
 
-impl<T: Read> RecordsIter<T> {
-    fn new(lines: Lines<BufReader<T>>, header: Header) -> RecordsIter<T> {
+impl<R: Read> RecordsIter<R> {
+    fn new(lines: Lines<BufReader<R>>, header: Header) -> RecordsIter<R> {
         RecordsIter {
             lines,
             remaining_inputs: header.i,
@@ -322,7 +322,7 @@ impl<T: Read> RecordsIter<T> {
     }
 }
 
-impl<T: Read> Iterator for RecordsIter<T> {
+impl<R: Read> Iterator for RecordsIter<R> {
     type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
