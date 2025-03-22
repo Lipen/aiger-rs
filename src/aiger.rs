@@ -83,16 +83,16 @@ pub enum SymbolType {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Record {
-    Input(Literal),
+    Input { id: Literal },
+    Output { id: Literal },
     Latch {
         /// The current state.
-        output: Literal,
+        id: Literal,
         /// The next state.
-        input: Literal,
+        next: Literal,
     },
-    Output(Literal),
     AndGate {
-        output: Literal,
+        id: Literal,
         inputs: [Literal; 2],
     },
     Symbol {
@@ -105,33 +105,30 @@ pub enum Record {
 impl Record {
     fn parse_input(literals: &[Literal]) -> Result<Record> {
         match literals {
-            [input] => Ok(Record::Input(*input)),
+            &[input] => Ok(Record::Input { id: input }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
 
     fn parse_latch(literals: &[Literal]) -> Result<Record> {
         match literals {
-            [output, input] => Ok(Record::Latch {
-                output: *output,
-                input: *input,
-            }),
+            &[id, next] => Ok(Record::Latch { id: id, next }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
 
     fn parse_output(literals: &[Literal]) -> Result<Record> {
         match literals {
-            [output] => Ok(Record::Output(*output)),
+            &[id] => Ok(Record::Output { id }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
 
     fn parse_and_gate(literals: &[Literal]) -> Result<Record> {
         match literals {
-            [output, left, right] => Ok(Record::AndGate {
-                output: *output,
-                inputs: [*left, *right],
+            &[id, left, right] => Ok(Record::AndGate {
+                id,
+                inputs: [left, right],
             }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
@@ -163,9 +160,9 @@ impl Record {
         })
     }
 
-    fn validate(self, header: &Header) -> Result<Record> {
+    fn validate(self, header: &Header) -> Result<Self> {
         match &self {
-            Record::Input(input) => {
+            Record::Input { id: input } => {
                 if input.index() > header.m as u32 {
                     return Err(AigerError::LiteralOutOfRange);
                 }
@@ -173,24 +170,24 @@ impl Record {
                     return Err(AigerError::InvalidInverted);
                 }
             }
-            Record::Latch { output, input } => {
-                if output.index() > header.m as u32 {
+            Record::Latch { id, next } => {
+                if id.index() > header.m as u32 {
                     return Err(AigerError::LiteralOutOfRange);
                 }
-                if input.index() > header.m as u32 {
+                if next.index() > header.m as u32 {
                     return Err(AigerError::LiteralOutOfRange);
                 }
-                if output.is_negated() {
+                if id.is_negated() {
                     return Err(AigerError::InvalidInverted);
                 }
             }
-            Record::Output(output) => {
-                if output.index() > header.m as u32 {
+            Record::Output { id } => {
+                if id.index() > header.m as u32 {
                     return Err(AigerError::LiteralOutOfRange);
                 }
             }
-            Record::AndGate { output, inputs } => {
-                if output.index() > header.m as u32 {
+            Record::AndGate { id, inputs } => {
+                if id.index() > header.m as u32 {
                     return Err(AigerError::LiteralOutOfRange);
                 }
                 for input in inputs {
@@ -292,30 +289,29 @@ impl<T: Read> RecordsIter<T> {
     }
 
     fn read_record(&mut self, line: &str) -> Result<Record> {
-        let get_literals = || -> Result<Vec<Literal>> {
-            let parts = line.split(' ');
+        fn get_literals(line: &str) -> Result<Vec<Literal>> {
             let mut literals = Vec::new();
-            for part in parts {
+            for part in line.split(' ') {
                 let lit = part
                     .parse::<u32>()
                     .map_err(|_| AigerError::InvalidLiteral)?;
                 literals.push(Literal::new(lit));
             }
             Ok(literals)
-        };
+        }
 
         if self.remaining_inputs > 0 {
             self.remaining_inputs -= 1;
-            Record::parse_input(&get_literals()?)
+            Record::parse_input(&get_literals(line)?)
         } else if self.remaining_latches > 0 {
             self.remaining_latches -= 1;
-            Record::parse_latch(&get_literals()?)
+            Record::parse_latch(&get_literals(line)?)
         } else if self.remaining_outputs > 0 {
             self.remaining_outputs -= 1;
-            Record::parse_output(&get_literals()?)
+            Record::parse_output(&get_literals(line)?)
         } else if self.remaining_and_gates > 0 {
             self.remaining_and_gates -= 1;
-            Record::parse_and_gate(&get_literals()?)
+            Record::parse_and_gate(&get_literals(line)?)
         } else {
             Record::parse_symbol(line)
         }
@@ -336,7 +332,7 @@ impl<T: Read> Iterator for RecordsIter<T> {
             None => return None,
         };
 
-        if let Some('c') = line.chars().next() {
+        if line.starts_with('c') {
             self.comment = true;
             return None;
         }
@@ -382,7 +378,7 @@ mod tests {
         assert_eq!(header.a, 0);
 
         let mut records = reader.records();
-        assert_eq!(records.next(), Some(Ok(Record::Input(Literal::new(2)))));
+        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(2) })));
         assert_eq!(records.next(), None);
     }
 
@@ -406,13 +402,13 @@ mod tests {
         assert_eq!(header.a, 1);
 
         let mut records = reader.records();
-        assert_eq!(records.next(), Some(Ok(Record::Input(Literal::new(2)))));
-        assert_eq!(records.next(), Some(Ok(Record::Input(Literal::new(4)))));
-        assert_eq!(records.next(), Some(Ok(Record::Output(Literal::new(6)))));
+        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(2) })));
+        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(4) })));
+        assert_eq!(records.next(), Some(Ok(Record::Output { id: Literal::new(6) })));
         assert_eq!(
             records.next(),
             Some(Ok(Record::AndGate {
-                output: Literal::new(6),
+                id: Literal::new(6),
                 inputs: [Literal::new(2), Literal::new(4)]
             }))
         );
@@ -438,13 +434,13 @@ mod tests {
         assert_eq!(header.a, 1);
 
         let mut records = reader.records();
-        assert_eq!(records.next(), Some(Ok(Record::Input(Literal::new(2)))));
-        assert_eq!(records.next(), Some(Ok(Record::Input(Literal::new(4)))));
-        assert_eq!(records.next(), Some(Ok(Record::Output(Literal::new(7)))));
+        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(2) })));
+        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(4) })));
+        assert_eq!(records.next(), Some(Ok(Record::Output { id: Literal::new(7) })));
         assert_eq!(
             records.next(),
             Some(Ok(Record::AndGate {
-                output: Literal::new(6),
+                id: Literal::new(6),
                 inputs: [Literal::new(3), Literal::new(5)]
             }))
         );

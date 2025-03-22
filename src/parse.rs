@@ -23,17 +23,17 @@ impl Aig {
         for record in reader.records() {
             let record = record?;
             match record {
-                Record::Input(input) => {
+                Record::Input { id: input } => {
                     assert!(!input.is_negated());
                     aig.add_input(input.index());
                 }
                 Record::Latch { .. } => {
                     todo!("latches are not supported yet")
                 }
-                Record::Output(output) => {
+                Record::Output { id: output } => {
                     aig.add_output(lit2ref(output));
                 }
-                Record::AndGate { output, inputs } => {
+                Record::AndGate { id: output, inputs } => {
                     assert!(!output.is_negated());
                     let args = [lit2ref(inputs[0]), lit2ref(inputs[1])];
                     aig.add_and_gate(output.index(), args);
