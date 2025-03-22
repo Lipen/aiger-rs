@@ -6,7 +6,7 @@ use eyre::WrapErr;
 
 use crate::aig::Aig;
 use crate::aiger::Header;
-use crate::node::{AigAndGate, Node};
+use crate::node::AigAndGate;
 
 const AIGER_ASCII_TAG: &str = "aag";
 
