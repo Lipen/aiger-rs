@@ -78,7 +78,7 @@ mod tests {
         let mut aig = Aig::default();
         aig.add_input(1);
         aig.add_input(2);
-        aig.add_and_gate(3, [Ref::negative(1), Ref::negative(2)]);
+        aig.add_and_gate(3, [Ref::negative(1), Ref::positive(2)]);
         aig.add_output(Ref::negative(3));
         let s = aig.write_to_string().unwrap();
         let expected = indoc! {"
@@ -86,7 +86,7 @@ mod tests {
             2
             4
             7
-            6 3 5
+            6 3 4
         "};
         assert_eq!(s, expected);
     }
