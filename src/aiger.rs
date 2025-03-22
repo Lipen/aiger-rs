@@ -83,8 +83,12 @@ pub enum SymbolType {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Record {
-    Input { id: Literal },
-    Output { id: Literal },
+    Input {
+        id: Literal,
+    },
+    Output {
+        id: Literal,
+    },
     Latch {
         /// The current state.
         id: Literal,
@@ -378,7 +382,12 @@ mod tests {
         assert_eq!(header.a, 0);
 
         let mut records = reader.records();
-        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(2) })));
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Input {
+                id: Literal::new(2)
+            }))
+        );
         assert_eq!(records.next(), None);
     }
 
@@ -402,9 +411,24 @@ mod tests {
         assert_eq!(header.a, 1);
 
         let mut records = reader.records();
-        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(2) })));
-        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(4) })));
-        assert_eq!(records.next(), Some(Ok(Record::Output { id: Literal::new(6) })));
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Input {
+                id: Literal::new(2)
+            }))
+        );
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Input {
+                id: Literal::new(4)
+            }))
+        );
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Output {
+                id: Literal::new(6)
+            }))
+        );
         assert_eq!(
             records.next(),
             Some(Ok(Record::AndGate {
@@ -434,9 +458,24 @@ mod tests {
         assert_eq!(header.a, 1);
 
         let mut records = reader.records();
-        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(2) })));
-        assert_eq!(records.next(), Some(Ok(Record::Input { id: Literal::new(4) })));
-        assert_eq!(records.next(), Some(Ok(Record::Output { id: Literal::new(7) })));
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Input {
+                id: Literal::new(2)
+            }))
+        );
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Input {
+                id: Literal::new(4)
+            }))
+        );
+        assert_eq!(
+            records.next(),
+            Some(Ok(Record::Output {
+                id: Literal::new(7)
+            }))
+        );
         assert_eq!(
             records.next(),
             Some(Ok(Record::AndGate {
