@@ -239,6 +239,7 @@ impl From<io::Error> for AigerError {
     }
 }
 
+/// A reader for AIGER files.
 pub struct Reader<T> {
     lines: Lines<BufReader<T>>,
     header: Header,
@@ -264,6 +265,7 @@ impl<R: Read> Reader<R> {
     }
 }
 
+/// An iterator over the records in an AIGER file.
 pub struct RecordsIter<T> {
     lines: Lines<BufReader<T>>,
     header: Header,
