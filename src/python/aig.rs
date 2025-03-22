@@ -38,12 +38,8 @@ impl PyAig {
         self.inner.outputs().iter().map(|r| r.get()).collect()
     }
 
-    pub fn nodes(&self) -> HashMap<u32, Vec<i32>> {
-        self.inner
-            .nodes()
-            .iter()
-            .map(|(&k, v)| (k, v.children().iter().map(|r| r.get()).collect()))
-            .collect()
+    pub fn gates(&self) -> Vec<u32> {
+        self.inner.and_gates().map(|gate| gate.id).collect()
     }
 
     pub fn children(&self, id: u32) -> Vec<i32> {
