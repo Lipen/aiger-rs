@@ -153,7 +153,7 @@ impl Record {
             .parse::<usize>()
             .map_err(|_| AigerError::InvalidSymbol)?;
 
-        let (_, symbol) = rest.split_at(1);
+        let symbol = &rest[1..];
         if symbol.is_empty() {
             return Err(AigerError::InvalidSymbol);
         }
