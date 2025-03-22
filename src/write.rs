@@ -75,7 +75,6 @@ mod tests {
 
     #[test]
     fn test_write_aiger() {
-        #[rustfmt::skip]
         let mut aig = Aig::default();
         aig.add_input(1);
         aig.add_input(2);
