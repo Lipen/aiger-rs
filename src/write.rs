@@ -6,7 +6,7 @@ use eyre::WrapErr;
 
 use crate::aig::Aig;
 use crate::aiger::Header;
-use crate::node::Node;
+use crate::node::{AigAndGate, Node};
 
 const AIGER_ASCII_TAG: &str = "aag";
 
@@ -51,14 +51,12 @@ impl Aig {
             writeln!(writer, "{}", output.raw())?;
         }
         // Gates:
-        for (&id, node) in self.nodes() {
-            match node {
-                Node::AndGate(gate) => {
-                    let [left, right] = gate.args;
-                    writeln!(writer, "{} {} {}", id * 2, left.raw(), right.raw())?;
-                }
-                _ => {}
-            }
+        for gate in self.and_gates() {
+            let AigAndGate {
+                id,
+                args: [left, right],
+            } = gate;
+            writeln!(writer, "{} {} {}", id * 2, left.raw(), right.raw())?;
         }
 
         Ok(())
