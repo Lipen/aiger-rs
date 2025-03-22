@@ -47,7 +47,7 @@ const HEADER_MAGIC: &str = "aag";
 impl FromStr for Header {
     type Err = AigerError;
 
-    fn from_str(line: &str) -> Result<Self, Self::Err> {
+    fn from_str(line: &str) -> Result<Self> {
         let mut components = line.split(' ');
 
         let magic = components.next().ok_or(AigerError::InvalidHeader)?;
@@ -103,14 +103,14 @@ pub enum Record {
 }
 
 impl Record {
-    fn parse_input(literals: &[Literal]) -> Result<Record, AigerError> {
+    fn parse_input(literals: &[Literal]) -> Result<Record> {
         match literals {
             [input] => Ok(Record::Input(*input)),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
 
-    fn parse_latch(literals: &[Literal]) -> Result<Record, AigerError> {
+    fn parse_latch(literals: &[Literal]) -> Result<Record> {
         match literals {
             [output, input] => Ok(Record::Latch {
                 output: *output,
@@ -120,14 +120,14 @@ impl Record {
         }
     }
 
-    fn parse_output(literals: &[Literal]) -> Result<Record, AigerError> {
+    fn parse_output(literals: &[Literal]) -> Result<Record> {
         match literals {
             [output] => Ok(Record::Output(*output)),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
 
-    fn parse_and_gate(literals: &[Literal]) -> Result<Record, AigerError> {
+    fn parse_and_gate(literals: &[Literal]) -> Result<Record> {
         match literals {
             [output, left, right] => Ok(Record::AndGate {
                 output: *output,
@@ -137,7 +137,7 @@ impl Record {
         }
     }
 
-    fn parse_symbol(line: &str) -> Result<Record, AigerError> {
+    fn parse_symbol(line: &str) -> Result<Record> {
         let (type_spec, rest) = line.split_at(1);
         let type_spec = match type_spec {
             "i" => SymbolType::Input,
@@ -163,7 +163,7 @@ impl Record {
         })
     }
 
-    fn validate(self, header: &Header) -> Result<Record, AigerError> {
+    fn validate(self, header: &Header) -> Result<Record> {
         match &self {
             Record::Input(input) => {
                 if input.index() > header.m as u32 {
@@ -206,6 +206,8 @@ impl Record {
     }
 }
 
+pub type Result<T, E = AigerError> = std::result::Result<T, E>;
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum AigerError {
     InvalidHeader,
@@ -246,7 +248,7 @@ pub struct Reader<T> {
 }
 
 impl<R: Read> Reader<R> {
-    pub fn from_reader(reader: R) -> Result<Reader<R>, AigerError> {
+    pub fn from_reader(reader: R) -> Result<Reader<R>> {
         let reader = BufReader::new(reader);
         let mut lines = reader.lines();
 
@@ -289,8 +291,8 @@ impl<T: Read> RecordsIter<T> {
         }
     }
 
-    fn read_record(&mut self, line: &str) -> Result<Record, AigerError> {
-        let get_literals = || -> Result<Vec<Literal>, AigerError> {
+    fn read_record(&mut self, line: &str) -> Result<Record> {
+        let get_literals = || -> Result<Vec<Literal>> {
             let parts = line.split(' ');
             let mut literals = Vec::new();
             for part in parts {
@@ -321,7 +323,7 @@ impl<T: Read> RecordsIter<T> {
 }
 
 impl<T: Read> Iterator for RecordsIter<T> {
-    type Item = Result<Record, AigerError>;
+    type Item = Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.comment {
@@ -360,7 +362,7 @@ mod tests {
         assert_eq!(header.a, 2);
     }
 
-    fn make_reader(input: &str) -> Result<Reader<&[u8]>, AigerError> {
+    fn make_reader(input: &str) -> Result<Reader<&[u8]>> {
         Reader::from_reader(input.as_bytes())
     }
 
