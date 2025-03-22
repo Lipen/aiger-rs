@@ -109,7 +109,7 @@ pub enum Record {
 impl Record {
     fn parse_input(literals: &[Literal]) -> Result<Record> {
         match literals {
-            &[input] => Ok(Record::Input { id: input }),
+            &[id] => Ok(Record::Input { id }),
             _ => Err(AigerError::InvalidLiteralCount),
         }
     }
