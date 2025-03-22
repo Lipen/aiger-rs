@@ -34,7 +34,10 @@ impl Aig {
                 Record::Output { id } => {
                     aig.add_output(lit2ref(id));
                 }
-                Record::AndGate { id, inputs: [left, right] } => {
+                Record::AndGate {
+                    id,
+                    inputs: [left, right],
+                } => {
                     assert!(!id.is_negated());
                     let args = [lit2ref(left), lit2ref(right)];
                     aig.add_and_gate(id.index(), args);
