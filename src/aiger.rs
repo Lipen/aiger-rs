@@ -353,9 +353,12 @@ impl<R: BufRead> Iterator for RecordsIter<R> {
 mod tests {
     use super::*;
 
+    use indoc::indoc;
+
     #[test]
     fn test_parse_header() {
-        let header = "aag 5 2 0 1 2".parse::<Header>().unwrap();
+        let input = "aag 5 2 0 1 2";
+        let header = input.parse::<Header>().unwrap();
         assert_eq!(header.m, 5);
         assert_eq!(header.i, 2);
         assert_eq!(header.l, 0);
@@ -369,11 +372,11 @@ mod tests {
 
     #[test]
     fn test_reader_single_input() {
-        #[rustfmt::skip]
-        let reader = make_reader(concat!(
-        "aag 1 1 0 0 0\n",
-        "2\n",
-        )).unwrap();
+        let input = indoc! {"
+            aag 1 1 0 0 0
+            2
+        "};
+        let reader = make_reader(input).unwrap();
 
         let header = reader.header();
         assert_eq!(header.m, 1);
@@ -394,15 +397,14 @@ mod tests {
 
     #[test]
     fn test_reader_and_gate() {
-        #[rustfmt::skip]
-        let reader =
-            make_reader(concat!(
-            "aag 3 2 0 1 1\n",
-            "2\n",
-            "4\n",
-            "6\n",
-            "6 2 4\n",
-            )).unwrap();
+        let input = indoc! {"
+            aag 3 2 0 1 1
+            2
+            4
+            6
+            6 2 4
+        "};
+        let reader = make_reader(input).unwrap();
 
         let header = reader.header();
         assert_eq!(header.m, 3);
@@ -442,14 +444,14 @@ mod tests {
 
     #[test]
     fn test_reader_or_gate() {
-        #[rustfmt::skip]
-        let reader = make_reader(concat!(
-        "aag 3 2 0 1 1\n",
-        "2\n",
-        "4\n",
-        "7\n",
-        "6 3 5\n",
-        )).unwrap();
+        let input = indoc! {"
+            aag 3 2 0 1 1
+            2
+            4
+            7
+            6 3 5
+        "};
+        let reader = make_reader(input).unwrap();
 
         let header = reader.header();
         assert_eq!(header.m, 3);
