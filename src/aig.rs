@@ -177,10 +177,10 @@ impl Aig {
             for id in layer {
                 match self.node(id) {
                     Node::Zero => {
-                        panic!("Unexpected zero at level {}", i);
+                        panic!("Unexpected zero on layer {}", i);
                     }
                     Node::Input(input) => {
-                        panic!("Unexpected input at level {}: {:?}", i, input);
+                        panic!("Unexpected input on layer {}: {:?}", i, input);
                     }
                     Node::AndGate(gate) => {
                         let [left, right] = gate.args;
