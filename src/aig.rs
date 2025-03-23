@@ -145,10 +145,8 @@ impl Aig {
         self.nodes()
             .iter()
             .map(|(&id, node)| {
-                (
-                    id,
-                    node.children().iter().map(|c| c.id()).collect::<Vec<_>>(),
-                )
+                let deps = node.children().iter().map(|c| c.id()).collect::<Vec<_>>();
+                (id, deps)
             })
             .collect()
     }
