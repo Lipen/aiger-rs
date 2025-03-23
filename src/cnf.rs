@@ -37,6 +37,7 @@ impl Aig {
                         let [left, right] = gate.args;
                         match (left.get_const(), right.get_const()) {
                             (Some(l), Some(r)) => {
+                                // Both LHS and RHS are constants
                                 if l && r {
                                     clauses.push(vec![x]);
                                 } else {
@@ -44,6 +45,7 @@ impl Aig {
                                 }
                             }
                             (Some(l), None) => {
+                                // LHS is constant
                                 let rhs = ref2lit(right, &mapping);
                                 if l {
                                     clauses.push(vec![x, -rhs]);
@@ -53,6 +55,7 @@ impl Aig {
                                 }
                             }
                             (None, Some(r)) => {
+                                // RHS is constant
                                 let lhs = ref2lit(left, &mapping);
                                 if r {
                                     clauses.push(vec![x, -lhs]);
@@ -62,6 +65,7 @@ impl Aig {
                                 }
                             }
                             (None, None) => {
+                                // Normal AND
                                 let lhs = ref2lit(left, &mapping);
                                 let rhs = ref2lit(right, &mapping);
                                 clauses.push(vec![x, -lhs, -rhs]);
