@@ -19,6 +19,8 @@ pub struct AigAndGate {
 }
 
 impl Node {
+    pub const ZERO: Self = Node::Zero;
+
     pub const fn input(id: u32) -> Self {
         Node::Input(AigInput { id })
     }
