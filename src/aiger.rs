@@ -1,7 +1,8 @@
 use std::fmt::{Display, Formatter};
-use std::io;
 use std::io::{BufRead, Lines};
 use std::str::FromStr;
+
+use eyre::{eyre, WrapErr};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
@@ -42,23 +43,29 @@ pub struct Header {
     pub a: usize,
 }
 
-const HEADER_MAGIC: &str = "aag";
+const TAG: &str = "aag";
 
 impl FromStr for Header {
-    type Err = AigerError;
+    type Err = eyre::Error;
 
-    fn from_str(line: &str) -> Result<Self> {
+    fn from_str(line: &str) -> eyre::Result<Self> {
         let mut components = line.split(' ');
 
-        let magic = components.next().ok_or(AigerError::InvalidHeader)?;
-        if magic != HEADER_MAGIC {
-            return Err(AigerError::InvalidHeader);
+        let tag = components.next().ok_or_else(|| eyre!("Tag is missing"))?;
+        if tag != TAG {
+            return Err(eyre!("Invalid tag '{}', expected '{}'", tag, TAG,));
         }
 
-        let mut components =
-            components.map(|s| s.parse::<usize>().map_err(|_| AigerError::InvalidHeader));
+        let mut components = components.map(|s| {
+            s.parse::<usize>()
+                .map_err(|_| eyre!("Invalid component '{}', expected non-negative number", s))
+        });
 
-        let mut next_component = || components.next().ok_or(AigerError::InvalidHeader)?;
+        let mut next_component = || {
+            components
+                .next()
+                .ok_or_else(|| eyre!("Not enough components, expected 'aag m i l o a'"))?
+        };
         let m = next_component()?;
         let i = next_component()?;
         let l = next_component()?;
@@ -67,7 +74,7 @@ impl FromStr for Header {
 
         if components.next().is_some() {
             // There are more components than expected.
-            return Err(AigerError::InvalidHeader);
+            return Err(eyre!("Too many components, expected 'aag m i l o a'"));
         }
 
         Ok(Header { m, i, l, o, a })
@@ -79,7 +86,7 @@ impl Display for Header {
         write!(
             f,
             "{} {} {} {} {} {}",
-            HEADER_MAGIC, self.m, self.i, self.l, self.o, self.a
+            TAG, self.m, self.i, self.l, self.o, self.a
         )
     }
 }
@@ -117,55 +124,72 @@ pub enum Record {
 }
 
 impl Record {
-    fn parse_input(literals: &[Literal]) -> Result<Record> {
+    fn parse_input(literals: &[Literal]) -> eyre::Result<Record> {
         match literals {
             &[id] => Ok(Record::Input { id }),
-            _ => Err(AigerError::InvalidLiteralCount),
+            _ => Err(eyre!(
+                "Invalid number of literals for input: expected 1, got {}",
+                literals.len()
+            )),
         }
     }
 
-    fn parse_latch(literals: &[Literal]) -> Result<Record> {
+    fn parse_latch(literals: &[Literal]) -> eyre::Result<Record> {
         match literals {
             &[id, next] => Ok(Record::Latch { id, next }),
-            _ => Err(AigerError::InvalidLiteralCount),
+            _ => Err(eyre!(
+                "Invalid number of literals for latch: expected 2, got {}",
+                literals.len()
+            )),
         }
     }
 
-    fn parse_output(literals: &[Literal]) -> Result<Record> {
+    fn parse_output(literals: &[Literal]) -> eyre::Result<Record> {
         match literals {
             &[id] => Ok(Record::Output { id }),
-            _ => Err(AigerError::InvalidLiteralCount),
+            _ => Err(eyre!(
+                "Invalid number of literals for output: expected 1, got {}",
+                literals.len()
+            )),
         }
     }
 
-    fn parse_and_gate(literals: &[Literal]) -> Result<Record> {
+    fn parse_and_gate(literals: &[Literal]) -> eyre::Result<Record> {
         match literals {
             &[id, left, right] => Ok(Record::AndGate {
                 id,
                 inputs: [left, right],
             }),
-            _ => Err(AigerError::InvalidLiteralCount),
+            _ => Err(eyre!(
+                "Invalid number of literals for and gate: expected 3, got {}",
+                literals.len()
+            )),
         }
     }
 
-    fn parse_symbol(line: &str) -> Result<Record> {
+    fn parse_symbol(line: &str) -> eyre::Result<Record> {
         let (type_spec, rest) = line.split_at(1);
         let type_spec = match type_spec {
             "i" => SymbolType::Input,
             "l" => SymbolType::Latch,
             "o" => SymbolType::Output,
-            _ => return Err(AigerError::InvalidSymbol),
+            _ => {
+                return Err(eyre!(
+                    "Invalid type '{}', expected 'i', 'l' or 'o'",
+                    type_spec
+                ))
+            }
         };
 
-        let space_position = rest.find(' ').ok_or(AigerError::InvalidSymbol)?;
+        let space_position = rest.find(' ').ok_or_else(|| eyre!("Expected space"))?;
         let (position, rest) = rest.split_at(space_position);
         let position = position
             .parse::<usize>()
-            .map_err(|_| AigerError::InvalidSymbol)?;
+            .map_err(|_| eyre!("Could not parse position '{}' as usize", position))?;
 
         let symbol = &rest[1..];
         if symbol.is_empty() {
-            return Err(AigerError::InvalidSymbol);
+            return Err(eyre!("Symbol name is empty"));
         }
         Ok(Record::Symbol {
             type_spec,
@@ -174,81 +198,85 @@ impl Record {
         })
     }
 
-    fn validate(self, header: &Header) -> Result<Self> {
+    fn validate(self, header: &Header) -> eyre::Result<Self> {
         match &self {
             Record::Input { id } => {
+                if id.index() == 0 {
+                    return Err(eyre!("Input index must be non-zero"));
+                }
                 if id.index() > header.m as u32 {
-                    return Err(AigerError::LiteralOutOfRange);
+                    return Err(eyre!(
+                        "Input {} is out of range (1..{})",
+                        id.index(),
+                        header.m
+                    ));
                 }
                 if id.is_negated() {
-                    return Err(AigerError::InvalidInverted);
+                    return Err(eyre!("Input {} is inverted", id.index()));
                 }
             }
             Record::Latch { id, next } => {
+                if id.index() == 0 {
+                    return Err(eyre!("Latch index must be non-zero"));
+                }
+                if next.index() == 0 {
+                    return Err(eyre!("Latch next index must be non-zero"));
+                }
                 if id.index() > header.m as u32 {
-                    return Err(AigerError::LiteralOutOfRange);
+                    return Err(eyre!(
+                        "Latch {} is out of range (1..{})",
+                        id.index(),
+                        header.m
+                    ));
                 }
                 if next.index() > header.m as u32 {
-                    return Err(AigerError::LiteralOutOfRange);
+                    return Err(eyre!(
+                        "Latch next {} is out of range (1..{})",
+                        next.index(),
+                        header.m
+                    ));
                 }
                 if id.is_negated() {
-                    return Err(AigerError::InvalidInverted);
+                    return Err(eyre!("Latch {} is inverted", id.index()));
                 }
             }
             Record::Output { id } => {
                 if id.index() > header.m as u32 {
-                    return Err(AigerError::LiteralOutOfRange);
+                    return Err(eyre!(
+                        "Output {} is out of range (1..{})",
+                        id.index(),
+                        header.m
+                    ));
                 }
             }
             Record::AndGate { id, inputs } => {
                 if id.index() > header.m as u32 {
-                    return Err(AigerError::LiteralOutOfRange);
+                    return Err(eyre!(
+                        "And gate {} is out of range (1..{})",
+                        id.index(),
+                        header.m
+                    ));
                 }
-                for input in inputs {
-                    if input.index() > header.m as u32 {
-                        return Err(AigerError::LiteralOutOfRange);
-                    }
+                let [left, right] = inputs;
+                if left.index() > header.m as u32 {
+                    return Err(eyre!(
+                        "And gate left {} is out of range (1..{})",
+                        left.index(),
+                        header.m
+                    ));
+                }
+                if right.index() > header.m as u32 {
+                    return Err(eyre!(
+                        "And gate right {} is out of range (1..{})",
+                        right.index(),
+                        header.m
+                    ));
                 }
             }
-            _ => {}
+            Record::Symbol { .. } => {}
         }
 
         Ok(self)
-    }
-}
-
-pub type Result<T, E = AigerError> = std::result::Result<T, E>;
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum AigerError {
-    InvalidHeader,
-    InvalidLiteral,
-    LiteralOutOfRange,
-    InvalidLiteralCount,
-    InvalidInverted,
-    InvalidSymbol,
-    IoError,
-}
-
-impl Display for AigerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AigerError::InvalidHeader => write!(f, "Invalid header"),
-            AigerError::InvalidLiteral => write!(f, "Invalid literal"),
-            AigerError::LiteralOutOfRange => write!(f, "Literal out of range"),
-            AigerError::InvalidLiteralCount => write!(f, "Invalid literal count"),
-            AigerError::InvalidInverted => write!(f, "Invalid inverted literal"),
-            AigerError::InvalidSymbol => write!(f, "Invalid symbol"),
-            AigerError::IoError => write!(f, "I/O error"),
-        }
-    }
-}
-
-impl std::error::Error for AigerError {}
-
-impl From<io::Error> for AigerError {
-    fn from(_error: io::Error) -> Self {
-        AigerError::IoError
     }
 }
 
@@ -259,11 +287,15 @@ pub struct Reader<R> {
 }
 
 impl<R: BufRead> Reader<R> {
-    pub fn new(reader: R) -> Result<Reader<R>> {
+    pub fn new(reader: R) -> eyre::Result<Reader<R>> {
         let mut lines = reader.lines();
 
-        let header_line = lines.next().ok_or(AigerError::InvalidHeader)??;
-        let header = header_line.parse::<Header>()?;
+        let header_line = lines
+            .next()
+            .ok_or_else(|| eyre!("Header line is missing"))??;
+        let header = header_line
+            .parse::<Header>()
+            .wrap_err_with(|| format!("Invalid header '{}'", header_line))?;
 
         Ok(Reader { lines, header })
     }
@@ -303,13 +335,13 @@ impl<R> RecordsIter<R> {
         }
     }
 
-    fn read_record(&mut self, line: &str) -> Result<Record> {
-        fn get_literals(line: &str) -> Result<Vec<Literal>> {
+    fn read_record(&mut self, line: &str) -> eyre::Result<Record> {
+        fn get_literals(line: &str) -> eyre::Result<Vec<Literal>> {
             let mut literals = Vec::new();
             for part in line.split(' ') {
                 let lit = part
                     .parse::<u32>()
-                    .map_err(|_| AigerError::InvalidLiteral)?;
+                    .map_err(|_| eyre!("Invalid literal '{}', expected u32 number", part))?;
                 literals.push(Literal::new(lit));
             }
             Ok(literals)
@@ -318,23 +350,27 @@ impl<R> RecordsIter<R> {
         if self.remaining_inputs > 0 {
             self.remaining_inputs -= 1;
             Record::parse_input(&get_literals(line)?)
+                .wrap_err_with(|| format!("Invalid input '{}'", line))
         } else if self.remaining_latches > 0 {
             self.remaining_latches -= 1;
             Record::parse_latch(&get_literals(line)?)
+                .wrap_err_with(|| format!("Invalid latch '{}'", line))
         } else if self.remaining_outputs > 0 {
             self.remaining_outputs -= 1;
             Record::parse_output(&get_literals(line)?)
+                .wrap_err_with(|| format!("Invalid output '{}'", line))
         } else if self.remaining_and_gates > 0 {
             self.remaining_and_gates -= 1;
             Record::parse_and_gate(&get_literals(line)?)
+                .wrap_err_with(|| format!("Invalid and gate '{}'", line))
         } else {
-            Record::parse_symbol(line)
+            Record::parse_symbol(line).wrap_err_with(|| format!("Invalid symbol '{}'", line))
         }
     }
 }
 
 impl<R: BufRead> Iterator for RecordsIter<R> {
-    type Item = Result<Record>;
+    type Item = eyre::Result<Record>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.comment {
@@ -354,6 +390,7 @@ impl<R: BufRead> Iterator for RecordsIter<R> {
 
         Some(
             self.read_record(&line)
+                .wrap_err_with(|| format!("Invalid record '{}'", line))
                 .and_then(|r| r.validate(&self.header)),
         )
     }
@@ -376,7 +413,7 @@ mod tests {
         assert_eq!(header.a, 2);
     }
 
-    fn make_reader(input: &str) -> Result<Reader<&[u8]>> {
+    fn make_reader(input: &str) -> eyre::Result<Reader<&[u8]>> {
         Reader::new(input.as_bytes())
     }
 
@@ -396,13 +433,14 @@ mod tests {
         assert_eq!(header.a, 0);
 
         let mut records = reader.records();
+        let mut next = || records.next().map(|x| x.unwrap());
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Input {
+            next(),
+            Some(Record::Input {
                 id: Literal::new(2)
-            }))
+            })
         );
-        assert_eq!(records.next(), None);
+        assert_eq!(next(), None);
     }
 
     #[test]
@@ -424,32 +462,33 @@ mod tests {
         assert_eq!(header.a, 1);
 
         let mut records = reader.records();
+        let mut next = || records.next().map(|x| x.unwrap());
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Input {
+            next(),
+            Some(Record::Input {
                 id: Literal::new(2)
-            }))
+            })
         );
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Input {
+            next(),
+            Some(Record::Input {
                 id: Literal::new(4)
-            }))
+            })
         );
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Output {
+            next(),
+            Some(Record::Output {
                 id: Literal::new(6)
-            }))
+            })
         );
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::AndGate {
+            next(),
+            Some(Record::AndGate {
                 id: Literal::new(6),
                 inputs: [Literal::new(2), Literal::new(4)]
-            }))
+            })
         );
-        assert_eq!(records.next(), None);
+        assert_eq!(next(), None);
     }
 
     #[test]
@@ -471,31 +510,32 @@ mod tests {
         assert_eq!(header.a, 1);
 
         let mut records = reader.records();
+        let mut next = || records.next().map(|x| x.unwrap());
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Input {
+            next(),
+            Some(Record::Input {
                 id: Literal::new(2)
-            }))
+            })
         );
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Input {
+            next(),
+            Some(Record::Input {
                 id: Literal::new(4)
-            }))
+            })
         );
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::Output {
+            next(),
+            Some(Record::Output {
                 id: Literal::new(7)
-            }))
+            })
         );
         assert_eq!(
-            records.next(),
-            Some(Ok(Record::AndGate {
+            next(),
+            Some(Record::AndGate {
                 id: Literal::new(6),
                 inputs: [Literal::new(3), Literal::new(5)]
-            }))
+            })
         );
-        assert_eq!(records.next(), None);
+        assert_eq!(next(), None);
     }
 }
