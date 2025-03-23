@@ -52,7 +52,6 @@ impl Aig {
             } = gate;
             writeln!(writer, "{} {} {}", id * 2, left.raw(), right.raw())?;
         }
-
         Ok(())
     }
 }
