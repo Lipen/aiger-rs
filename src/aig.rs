@@ -164,7 +164,13 @@ impl Aig {
         }
 
         fn get_value(r: Ref, values: &BTreeMap<u32, bool>) -> bool {
-            values[&r.id()] ^ r.is_negated()
+            if r.is_false() {
+                false
+            } else if r.is_true() {
+                true
+            } else {
+                values[&r.id()] ^ r.is_negated()
+            }
         }
 
         for (i, layer) in self.layers_input().enumerate().skip(1) {
@@ -236,6 +242,8 @@ mod tests {
         aig.add_and_gate(5, [Ref::negative(4), Ref::positive(3)]);
         // g3 = x1 and ~g2
         aig.add_and_gate(6, [Ref::positive(1), Ref::negative(5)]);
+        // g4 = g3 and 0
+        aig.add_and_gate(7, [Ref::positive(6), Ref::FALSE]);
 
         aig.add_output(Ref::positive(6));
 
@@ -249,5 +257,6 @@ mod tests {
         assert_eq!(values[&4], false); // g1 = x1 and x2
         assert_eq!(values[&5], true); // g2 = ~g1 and x3
         assert_eq!(values[&6], false); // g3 = x1 and ~g2
+        assert_eq!(values[&7], false); // g4 = g3 and 0
     }
 }
