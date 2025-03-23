@@ -66,4 +66,8 @@ impl PyAig {
     pub fn layers_output(&self) -> Vec<Vec<u32>> {
         self.inner.layers_output().collect()
     }
+
+    pub fn to_cnf(&self) -> Vec<Vec<i32>> {
+        self.inner.to_cnf()
+    }
 }
