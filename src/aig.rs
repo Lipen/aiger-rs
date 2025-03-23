@@ -159,20 +159,27 @@ impl Aig {
 
         let mut values = BTreeMap::new();
 
-        for layer in self.layers_input() {
+        for (&id, value) in self.inputs.iter().zip(input_values) {
+            values.insert(id, value);
+        }
+
+        fn get_value(r: Ref, values: &BTreeMap<u32, bool>) -> bool {
+            values[&r.id()] ^ r.is_negated()
+        }
+
+        for (i, layer) in self.layers_input().enumerate().skip(1) {
             for id in layer {
                 match self.node(id) {
                     Node::Zero => {
-                        values.insert(id, false);
+                        panic!("Unexpected zero at level {}", i);
                     }
                     Node::Input(input) => {
-                        let i = self.inputs.iter().position(|&x| x == input.id).unwrap();
-                        let value = input_values[i];
-                        values.insert(id, value);
+                        panic!("Unexpected input at level {}: {:?}", i, input);
                     }
                     Node::AndGate(gate) => {
-                        let left = values[&gate.args[0].id()] ^ gate.args[0].is_negated();
-                        let right = values[&gate.args[1].id()] ^ gate.args[1].is_negated();
+                        let [left, right] = gate.args;
+                        let left = get_value(left, &values);
+                        let right = get_value(right, &values);
                         let value = left && right;
                         values.insert(id, value);
                     }
