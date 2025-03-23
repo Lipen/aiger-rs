@@ -5,7 +5,14 @@ use std::ops::Neg;
 pub struct Ref(u32);
 
 impl Ref {
+    pub const FALSE: Self = Self(0);
+    pub const TRUE: Self = Self(1);
+
     pub const fn new(id: u32, negated: bool) -> Self {
+        debug_assert!(
+            id != 0,
+            "Ref id must be non-zero. Use Ref::FALSE or Ref::TRUE instead."
+        );
         Self((id << 1) + negated as u32)
     }
     pub const fn positive(id: u32) -> Self {
@@ -13,13 +20,6 @@ impl Ref {
     }
     pub const fn negative(id: u32) -> Self {
         Self::new(id, true)
-    }
-
-    pub const fn zero() -> Self {
-        Self(0)
-    }
-    pub const fn one() -> Self {
-        Self(1)
     }
 
     pub const fn raw(self) -> u32 {
@@ -37,6 +37,25 @@ impl Ref {
             -id
         } else {
             id
+        }
+    }
+
+    pub const fn is_const(self) -> bool {
+        self.id() == 0
+    }
+    pub const fn is_false(self) -> bool {
+        self.0 == 0
+    }
+    pub const fn is_true(self) -> bool {
+        self.0 == 1
+    }
+    pub const fn get_const(self) -> Option<bool> {
+        if self.is_false() {
+            Some(false)
+        } else if self.is_true() {
+            Some(true)
+        } else {
+            None
         }
     }
 }
