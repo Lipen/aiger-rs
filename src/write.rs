@@ -8,8 +8,6 @@ use crate::aig::Aig;
 use crate::aiger::Header;
 use crate::node::AigAndGate;
 
-const AIGER_ASCII_TAG: &str = "aag";
-
 impl Aig {
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> eyre::Result<()> {
         let path = path.as_ref();
@@ -37,11 +35,7 @@ impl Aig {
             a: self.nodes().len() - self.inputs().len(),
         };
         // Header:
-        writeln!(
-            writer,
-            "{} {} {} {} {} {}",
-            AIGER_ASCII_TAG, header.m, header.i, header.l, header.o, header.a
-        )?;
+        writeln!(writer, "{}", header)?;
         // Inputs:
         for &input in self.inputs() {
             writeln!(writer, "{}", input * 2)?;

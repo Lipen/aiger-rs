@@ -74,6 +74,16 @@ impl FromStr for Header {
     }
 }
 
+impl Display for Header {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} {} {} {} {} {}",
+            HEADER_MAGIC, self.m, self.i, self.l, self.o, self.a
+        )
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum SymbolType {
     Input,
