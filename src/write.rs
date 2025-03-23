@@ -6,7 +6,6 @@ use eyre::WrapErr;
 
 use crate::aig::Aig;
 use crate::aiger::Header;
-use crate::node::AigAndGate;
 
 impl Aig {
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> eyre::Result<()> {
@@ -45,11 +44,11 @@ impl Aig {
             writeln!(writer, "{}", output.raw())?;
         }
         // Gates:
-        for gate in self.and_gates() {
-            let AigAndGate {
-                id,
-                args: [left, right],
-            } = gate;
+        let mut gates: Vec<u32> = self.and_gates().map(|g| g.id).collect();
+        gates.sort();
+        for id in gates {
+            let gate = self.gate(id);
+            let [left, right] = gate.args;
             writeln!(writer, "{} {} {}", id * 2, left.raw(), right.raw())?;
         }
         Ok(())
@@ -70,14 +69,18 @@ mod tests {
         aig.add_input(1);
         aig.add_input(2);
         aig.add_and_gate(3, [Ref::negative(1), Ref::positive(2)]);
+        aig.add_and_gate(4, [Ref::negative(3), Ref::FALSE]);
         aig.add_output(Ref::negative(3));
+        aig.add_output(Ref::positive(4));
         let s = aig.write_to_string().unwrap();
         let expected = indoc! {"
-            aag 3 2 0 1 1
+            aag 4 2 0 2 2
             2
             4
             7
+            8
             6 3 4
+            8 7 0
         "};
         assert_eq!(s, expected);
     }
