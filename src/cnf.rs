@@ -5,7 +5,7 @@ use crate::node::Node;
 use crate::reference::Ref;
 
 impl Aig {
-    pub fn to_cnf(&self) -> Vec<Vec<i32>> {
+    pub fn to_cnf(&self) -> (Vec<Vec<i32>>, HashMap<u32, u32>) {
         let mut mapping = HashMap::new(); // {id: var}
         let mut clauses = Vec::new();
 
@@ -80,7 +80,7 @@ impl Aig {
             }
         }
 
-        clauses
+        (clauses, mapping)
     }
 }
 
@@ -107,7 +107,7 @@ mod tests {
             println!("  {:?}", layer);
         }
 
-        let clauses = aig.to_cnf();
+        let (clauses, _) = aig.to_cnf();
         println!("CNF of {} clauses:", clauses.len());
         for clause in clauses.iter() {
             println!(

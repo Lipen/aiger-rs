@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 use pyo3::prelude::*;
@@ -66,7 +67,7 @@ impl PyAig {
         self.inner.layers_output().collect()
     }
 
-    pub fn to_cnf(&self) -> Vec<Vec<i32>> {
+    pub fn to_cnf(&self) -> (Vec<Vec<i32>>, HashMap<u32, u32>) {
         self.inner.to_cnf()
     }
 }
