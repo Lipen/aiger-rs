@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use crate::node::{AigAndGate, AigInput, Node};
 use crate::reference::Ref;
-use crate::toposort::{toposort_backward, toposort_forward};
+use crate::toposort::toposort_layers;
 
 /// And-Inverter Graph.
 pub struct Aig {
@@ -126,19 +126,27 @@ impl Aig {
     /// Return the iterator of 'backward' layers in the AIG.
     /// The first 'backward' layer consists of all inputs.
     pub fn layers_input(&self) -> impl Iterator<Item = Vec<u32>> {
-        toposort_backward(&self.dependency_graph()).map(|mut xs| {
-            xs.sort();
-            xs
-        })
+        let graph = self.reverse_dependency_graph();
+        toposort_layers(&graph)
+            .map(|mut xs| {
+                xs.sort();
+                xs
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     /// Return the iterator of 'forward' layers in the AIG.
     /// The first 'forward' layer consists of all outputs.
     pub fn layers_output(&self) -> impl Iterator<Item = Vec<u32>> {
-        toposort_forward(&self.dependency_graph()).map(|mut xs| {
-            xs.sort();
-            xs
-        })
+        let graph = self.dependency_graph();
+        toposort_layers(&graph)
+            .map(|mut xs| {
+                xs.sort();
+                xs
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     fn dependency_graph(&self) -> HashMap<u32, Vec<u32>> {
@@ -149,6 +157,16 @@ impl Aig {
                 (id, deps)
             })
             .collect()
+    }
+
+    fn reverse_dependency_graph(&self) -> HashMap<u32, HashSet<u32>> {
+        let mut result = HashMap::<u32, HashSet<u32>>::new();
+        for (&id, node) in self.nodes() {
+            for c in node.children() {
+                result.entry(c.id()).or_default().insert(id);
+            }
+        }
+        result
     }
 }
 

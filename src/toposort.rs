@@ -1,236 +1,173 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Performs a "forward" topological sort on a directed graph.
-/// Returns an iterator over layers.
-/// Each layer is [`Vec<T>`].
-/// The first layer of forward toposort consists of nodes that have no incoming edges (in-degree 0).
-pub fn toposort_forward<T>(graph: &HashMap<T, Vec<T>>) -> ForwardTopoSort<T>
+/// Performs a topological sorting of a directed graph.
+/// Returns an iterator of layers.
+/// The first layer consists of nodes that have no incoming edges (in-degree 0).
+///
+/// # Panics
+///
+/// Panics if the input graph contains a cycle.
+pub fn toposort_layers<T, I>(graph: &HashMap<T, I>) -> impl Iterator<Item = Vec<T>> + '_
 where
-    T: Hash + Eq + Clone,
+    T: Eq + Hash + Clone,
+    for<'a> &'a I: IntoIterator<Item = &'a T>,
 {
-    ForwardTopoSort::new(graph)
-}
-
-pub struct ForwardTopoSort<T> {
-    graph: HashMap<T, Vec<T>>,
-    in_degree: HashMap<T, usize>,
-    queue: VecDeque<T>,
-    circular_dependency: bool,
-}
-
-impl<T> ForwardTopoSort<T>
-where
-    T: Hash + Eq + Clone,
-{
-    pub fn new(graph: &HashMap<T, Vec<T>>) -> Self {
-        // Count in-degree for each node.
-        let mut in_degree: HashMap<T, usize> = HashMap::new();
-        for node in graph.values().flat_map(|v| v.iter()) {
-            let count = in_degree.entry(node.clone()).or_default();
-            *count += 1;
-        }
-
-        // Create a queue and initialize it with nodes that have no incoming edges.
-        // These are potential starting points for the topological sort.
-        let queue: VecDeque<_> = graph
-            .keys()
-            .filter(|node| !in_degree.contains_key(node))
-            .cloned()
-            .collect();
-
-        Self {
-            graph: graph.clone(),
-            in_degree,
-            queue,
-            circular_dependency: false,
+    // Compute in-degree for each node
+    let mut in_degree = HashMap::new();
+    for (node, neighbors) in graph {
+        in_degree.entry(node.clone()).or_insert(0);
+        for neighbor in neighbors {
+            *in_degree.entry(neighbor.clone()).or_insert(0) += 1;
         }
     }
-}
 
-impl<T> Iterator for ForwardTopoSort<T>
-where
-    T: Hash + Eq + Clone,
-{
-    type Item = Vec<T>;
+    // Initialize with nodes that have no incoming edges
+    let mut current_layer: Vec<T> = in_degree
+        .iter()
+        .filter(|(_, &deg)| deg == 0)
+        .map(|(node, _)| node.clone())
+        .collect();
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.queue.is_empty() {
-            if !self.circular_dependency {
-                for &count in self.in_degree.values() {
-                    if count > 0 {
-                        self.circular_dependency = true;
-                        panic!("Circular dependency detected");
-                    }
-                }
+    let mut processed = 0;
+    let total = in_degree.len();
+
+    std::iter::from_fn(move || {
+        // Check for completion or cycles
+        if current_layer.is_empty() {
+            if processed != total {
+                panic!("Graph contains a cycle");
             }
             return None;
         }
 
-        let mut layer = Vec::new();
-        for _ in 0..self.queue.len() {
-            let node = self.queue.pop_front().unwrap();
+        // Yield current layer and prepare next
+        let layer = std::mem::take(&mut current_layer);
+        processed += layer.len();
 
-            if let Some(edges) = self.graph.remove(&node) {
-                for edge in edges {
-                    let count = self.in_degree.get_mut(&edge).unwrap();
-                    *count -= 1;
-
-                    if *count == 0 {
-                        self.queue.push_back(edge);
+        let mut next_layer: Vec<T> = Vec::new();
+        for node in &layer {
+            if let Some(neighbors) = graph.get(node) {
+                for neighbor in neighbors {
+                    let deg = in_degree.get_mut(neighbor).unwrap();
+                    *deg -= 1;
+                    if *deg == 0 {
+                        next_layer.push(neighbor.clone());
                     }
                 }
             }
-            layer.push(node);
         }
+
+        current_layer = next_layer;
         Some(layer)
-    }
-}
-
-/// Performs a "backward" topological sort on a directed graph.
-/// Returns an iterator over layers.
-/// Each layer is [`Vec<T>`].
-/// The first layer of backward toposort consists of nodes that have no outgoing edges.
-pub fn toposort_backward<T>(graph: &HashMap<T, Vec<T>>) -> BackwardTopoSort<T>
-where
-    T: Hash + Eq + Clone,
-{
-    BackwardTopoSort::new(graph)
-}
-
-pub struct BackwardTopoSort<T> {
-    data: HashMap<T, HashSet<T>>,
-}
-
-impl<T> BackwardTopoSort<T>
-where
-    T: Hash + Eq + Clone,
-{
-    pub fn new(graph: &HashMap<T, Vec<T>>) -> Self {
-        // Local mutable data:
-        let mut data: HashMap<T, HashSet<T>> = HashMap::with_capacity(graph.len());
-
-        // Add all deps to the map:
-        for (item, deps) in graph.iter() {
-            data.insert(item.clone(), deps.iter().cloned().collect());
-        }
-
-        // Find all items without deps and add them explicitly to the map:
-        for item in graph.values().flat_map(|v| v.iter()) {
-            data.entry(item.clone()).or_default();
-        }
-
-        BackwardTopoSort { data }
-    }
-}
-
-impl<T> Iterator for BackwardTopoSort<T>
-where
-    T: Hash + Eq + Clone,
-{
-    type Item = Vec<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // New layer is a list of items without dependencies:
-        let layer: Vec<T> = self
-            .data
-            .iter()
-            .filter_map(|(item, deps)| {
-                if deps.is_empty() {
-                    Some(item.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        // New layer can be empty in two cases:
-        //  (1) `data` is empty (this is OK, no more layers),
-        //  (2) or there is a circular dependency in `data`.
-        if layer.is_empty() {
-            // If `data` is not empty, we have a cycle:
-            // (note: `data` contains the cycle itself)
-            assert!(self.data.is_empty(), "Circular dependency detected");
-
-            return None;
-        }
-
-        // Remove keys without deps (new layer):
-        for item in &layer {
-            self.data.remove(item);
-        }
-
-        // Reduce deps:
-        for deps in self.data.values_mut() {
-            for item in &layer {
-                deps.remove(item);
-            }
-        }
-
-        // Return non-empty layer:
-        Some(layer)
-    }
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_forward_toposort() {
-        let mut graph = HashMap::new();
-        graph.insert("g1", vec!["x1", "x2"]);
-        graph.insert("g2", vec!["g1", "x3"]);
-        graph.insert("g3", vec!["x1", "g2"]);
-        let layers = toposort_forward(&graph).collect::<Vec<_>>();
-        assert_eq!(layers[0], vec!["g3"]);
-        assert_eq!(layers[1], vec!["g2"]);
-        assert_eq!(layers[2], vec!["g1", "x3"]);
-        assert_eq!(layers[3], vec!["x1", "x2"]);
+    fn sort_layers<T: Ord>(layers: &mut [Vec<T>]) {
+        for layer in layers.iter_mut() {
+            layer.sort();
+        }
     }
 
     #[test]
-    #[should_panic(expected = "Circular dependency detected")]
-    fn test_forward_toposort_cycle() {
+    fn test_example() {
         let mut graph = HashMap::new();
-        graph.insert("x1", vec!["x2"]);
-        graph.insert("x2", vec!["x3"]);
-        graph.insert("x3", vec!["x1"]);
-        toposort_forward(&graph).for_each(|_| {});
+        graph.insert(3, vec![10, 8]);
+        graph.insert(5, vec![11]);
+        graph.insert(7, vec![8, 11]);
+        graph.insert(8, vec![9]);
+        graph.insert(11, vec![9, 2, 10]);
+
+        let mut layers = toposort_layers(&graph);
+        sort_layers(&mut layers);
+        assert_eq!(layers, vec![vec![3, 5, 7], vec![8, 11], vec![2, 9, 10]]);
     }
 
     #[test]
-    fn test_backward_toposort() {
+    fn test_linear_graph() {
         let mut graph = HashMap::new();
-        graph.insert("g1", vec!["x1", "x2"]);
-        graph.insert("g2", vec!["g1", "x3"]);
-        graph.insert("g3", vec!["x1", "g2"]);
-        let mut layers = toposort_backward(&graph);
-        assert_eq!(
-            layers.next().unwrap().into_iter().collect::<HashSet<_>>(),
-            HashSet::from(["x1", "x2", "x3"])
-        );
-        assert_eq!(
-            layers.next().unwrap().into_iter().collect::<HashSet<_>>(),
-            HashSet::from(["g1"])
-        );
-        assert_eq!(
-            layers.next().unwrap().into_iter().collect::<HashSet<_>>(),
-            HashSet::from(["g2"])
-        );
-        assert_eq!(
-            layers.next().unwrap().into_iter().collect::<HashSet<_>>(),
-            HashSet::from(["g3"])
-        );
+        graph.insert("A", vec!["B"]);
+        graph.insert("B", vec!["C"]);
+        graph.insert("C", vec!["D"]);
+
+        let mut layers = toposort_layers(&graph);
+        sort_layers(&mut layers);
+        assert_eq!(layers, vec![vec!["A"], vec!["B"], vec!["C"], vec!["D"]]);
     }
 
     #[test]
-    #[should_panic(expected = "Circular dependency detected")]
-    fn test_backward_toposort_cycle() {
+    fn test_multiple_nodes_in_layer() {
         let mut graph = HashMap::new();
-        graph.insert("x1", vec!["x2"]);
-        graph.insert("x2", vec!["x3"]);
-        graph.insert("x3", vec!["x1"]);
-        toposort_backward(&graph).for_each(|_| {});
+        graph.insert("A", vec!["B", "C"]);
+        graph.insert("B", vec!["D"]);
+        graph.insert("C", vec!["D"]);
+
+        let mut layers = toposort_layers(&graph);
+        sort_layers(&mut layers);
+        assert_eq!(layers, vec![vec!["A"], vec!["B", "C"], vec!["D"]]);
+    }
+
+    #[test]
+    fn test_complex_dag() {
+        let mut graph = HashMap::new();
+        graph.insert(1, vec![2, 3]);
+        graph.insert(2, vec![4]);
+        graph.insert(3, vec![4]);
+        graph.insert(5, vec![6]);
+
+        let mut layers = toposort_layers(&graph);
+        sort_layers(&mut layers);
+        assert_eq!(layers, vec![vec![1, 5], vec![2, 3, 6], vec![4]]);
+    }
+
+    #[test]
+    fn test_single_node() {
+        let graph = HashMap::from([(1, vec![])]);
+        let layers = toposort_layers(&graph);
+        assert_eq!(layers, vec![vec![1]]);
+    }
+
+    #[test]
+    fn test_node_not_in_keys() {
+        let mut graph = HashMap::new();
+        graph.insert("A", vec!["B"]);
+
+        let mut layers = toposort_layers(&graph);
+        sort_layers(&mut layers);
+        assert_eq!(layers, vec![vec!["A"], vec!["B"]]);
+    }
+
+    #[test]
+    fn test_empty_graph() {
+        let graph: HashMap<i32, Vec<i32>> = HashMap::new();
+        let layers = toposort_layers(&graph);
+        assert!(layers.is_empty());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_cyclic_graph() {
+        let mut graph = HashMap::new();
+        graph.insert("A", vec!["B"]);
+        graph.insert("B", vec!["C"]);
+        graph.insert("C", vec!["A"]);
+
+        let layers = toposort_layers(&graph);
+        layers.for_each(drop);
+    }
+
+    #[test]
+    fn test_disconnected_components() {
+        let mut graph = HashMap::new();
+        graph.insert("A", vec!["B"]);
+        graph.insert("C", vec!["D"]);
+
+        let mut layers = toposort_layers(&graph);
+        sort_layers(&mut layers);
+        assert_eq!(layers, vec![vec!["A", "C"], vec!["B", "D"]]);
     }
 }
