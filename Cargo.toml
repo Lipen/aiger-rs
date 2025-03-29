@@ -26,3 +26,4 @@ features = ["extension-module", "abi3", "abi3-py37", "eyre"]
 
 [dev-dependencies]
 indoc = "2"
+glob = "0.3"
