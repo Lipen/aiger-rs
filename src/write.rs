@@ -5,7 +5,7 @@ use std::path::Path;
 use eyre::WrapErr;
 
 use crate::aig::Aig;
-use crate::aiger::{Header, TAG};
+use crate::aiger::TAG;
 
 impl Aig {
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> eyre::Result<()> {
