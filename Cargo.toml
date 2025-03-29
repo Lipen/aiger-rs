@@ -3,7 +3,7 @@ name = "aigerox"
 version = "0.9.0"
 authors = ["Konstantin Chukharev <lipen00@gmail.com>"]
 description = "A Rust library for working with AIGs (And-Inverted Graphs) and AIGER files."
-repository = "https://github.com/Lipen/aiger-rs"
+repository = "https://github.com/Lipen/aigerox"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

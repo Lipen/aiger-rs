@@ -1,4 +1,4 @@
-# aiger-rs
+# aigerox
 
 [![Build Status](https://github.com/Lipen/aiger-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/Lipen/aiger-rs/actions/workflows/ci.yml)
 
