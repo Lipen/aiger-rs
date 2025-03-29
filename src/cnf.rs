@@ -33,8 +33,8 @@ impl Aig {
                     Node::Zero => {
                         panic!("Unexpected zero on level {}", i);
                     }
-                    Node::Input(_) => {
-                        panic!("Unexpected input on level {}", i);
+                    Node::Input(input) => {
+                        panic!("Unexpected input on level {}: {:?}", i, input);
                     }
                     Node::Latch(latch) => {
                         panic!("Unexpected latch on level {}: {:?}", i, latch);
