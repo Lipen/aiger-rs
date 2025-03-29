@@ -208,10 +208,10 @@ mod tests {
         aig.add_input(1);
         aig.add_input(2);
         aig.add_input(3);
-        aig.add_and_gate(4, [Ref::positive(1), Ref::positive(2)]);
-        aig.add_and_gate(5, [Ref::positive(4), Ref::positive(3)]);
-        aig.add_and_gate(6, [Ref::positive(1), Ref::positive(5)]);
-        aig.add_output(Ref::positive(6));
+        aig.add_and_gate(4, [Ref::positive(1), Ref::negative(2)]);
+        aig.add_and_gate(5, [Ref::negative(4), Ref::positive(3)]);
+        aig.add_and_gate(6, [Ref::negative(1), Ref::positive(5)]);
+        aig.add_output(Ref::negative(6));
 
         let layers_input = aig.layers_input().collect::<Vec<_>>();
         assert_eq!(layers_input.len(), 4);
