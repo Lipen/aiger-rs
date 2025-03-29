@@ -52,15 +52,7 @@ impl Aig {
 }
 
 const fn lit2ref(lit: Literal) -> Ref {
-    if lit.index() == 0 {
-        if lit.is_negated() {
-            Ref::TRUE
-        } else {
-            Ref::FALSE
-        }
-    } else {
-        Ref::new(lit.index(), lit.is_negated())
-    }
+    Ref::from_raw(lit.raw())
 }
 
 #[cfg(test)]

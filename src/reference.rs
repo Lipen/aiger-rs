@@ -22,6 +22,10 @@ impl Ref {
         Self::new(id, true)
     }
 
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
     pub const fn raw(self) -> u32 {
         self.0
     }
