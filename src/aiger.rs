@@ -53,7 +53,7 @@ impl FromStr for Header {
 
         let tag = components.next().ok_or_else(|| eyre!("Tag is missing"))?;
         if tag != TAG {
-            return Err(eyre!("Invalid tag '{}', expected '{}'", tag, TAG,));
+            return Err(eyre!("Invalid tag '{}', expected '{}'", tag, TAG));
         }
 
         let mut components = components.map(|s| {
