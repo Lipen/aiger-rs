@@ -27,9 +27,9 @@ impl Aig {
                     assert!(!id.is_negated());
                     aig.add_input(id.index());
                 }
-                Record::Latch { id, .. } => {
+                Record::Latch { id, next } => {
                     assert!(!id.is_negated());
-                    todo!("latches are not supported yet")
+                    aig.add_latch(id.index(), lit2ref(next));
                 }
                 Record::Output { id } => {
                     aig.add_output(lit2ref(id));

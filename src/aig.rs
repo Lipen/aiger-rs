@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
-use crate::node::{AigAndGate, AigInput, Node};
+use crate::node::{AigAndGate, AigInput, AigLatch, Node};
 use crate::reference::Ref;
 use crate::toposort::toposort_layers;
 
@@ -9,14 +9,21 @@ use crate::toposort::toposort_layers;
 pub struct Aig {
     nodes: HashMap<u32, Node>,
     inputs: Vec<u32>,
+    latches: Vec<u32>,
     outputs: Vec<Ref>,
 }
 
 impl Aig {
-    pub const fn new(nodes: HashMap<u32, Node>, inputs: Vec<u32>, outputs: Vec<Ref>) -> Self {
+    pub const fn new(
+        nodes: HashMap<u32, Node>,
+        inputs: Vec<u32>,
+        latches: Vec<u32>,
+        outputs: Vec<Ref>,
+    ) -> Self {
         Self {
             nodes,
             inputs,
+            latches,
             outputs,
         }
     }
@@ -27,6 +34,7 @@ impl Default for Aig {
         Self {
             nodes: HashMap::new(),
             inputs: Vec::new(),
+            latches: Vec::new(),
             outputs: Vec::new(),
         }
     }
@@ -47,6 +55,9 @@ impl Aig {
     pub fn inputs(&self) -> &[u32] {
         &self.inputs
     }
+    pub fn latches(&self) -> &[u32] {
+        &self.latches
+    }
     pub fn outputs(&self) -> &[Ref] {
         &self.outputs
     }
@@ -65,6 +76,12 @@ impl Aig {
             return false;
         }
         matches!(self.nodes[&id], Node::Input(..))
+    }
+    pub fn is_latch(&self, id: u32) -> bool {
+        if id == 0 {
+            return false;
+        }
+        matches!(self.nodes[&id], Node::Latch(..))
     }
     pub fn is_gate(&self, id: u32) -> bool {
         if id == 0 {
@@ -92,6 +109,12 @@ impl Aig {
             _ => panic!("Node with id {} is not an input", id),
         }
     }
+    pub fn latch(&self, id: u32) -> AigLatch {
+        match self.node(id) {
+            Node::Latch(latch) => latch,
+            _ => panic!("Node with id {} is not a latch", id),
+        }
+    }
     pub fn gate(&self, id: u32) -> AigAndGate {
         match self.node(id) {
             Node::AndGate(gate) => gate,
@@ -104,6 +127,13 @@ impl Aig {
         assert!(!self.inputs.contains(&id));
         self.nodes.insert(id, Node::input(id));
         self.inputs.push(id);
+    }
+
+    pub fn add_latch(&mut self, id: u32, next: Ref) {
+        assert!(!self.contains(id));
+        assert!(!self.latches.contains(&id));
+        self.nodes.insert(id, Node::latch(id, next));
+        self.latches.push(id);
     }
 
     pub fn add_output(&mut self, output: Ref) {
@@ -199,6 +229,9 @@ impl Aig {
                     }
                     Node::Input(input) => {
                         panic!("Unexpected input on layer {}: {:?}", i, input);
+                    }
+                    Node::Latch(latch) => {
+                        panic!("Unexpected latch on layer {}: {:?}", i, latch);
                     }
                     Node::AndGate(gate) => {
                         let [left, right] = gate.args;

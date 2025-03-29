@@ -6,6 +6,10 @@ use crate::reference::Ref;
 
 impl Aig {
     pub fn to_cnf(&self) -> (Vec<Vec<i32>>, HashMap<u32, u32>) {
+        if !self.latches().is_empty() {
+            panic!("Can't convert AIG with latches to CNF");
+        }
+
         let mut mapping = HashMap::new(); // {id: var}
         let mut clauses = Vec::new();
 
@@ -31,6 +35,9 @@ impl Aig {
                     }
                     Node::Input(_) => {
                         panic!("Unexpected input on level {}", i);
+                    }
+                    Node::Latch(latch) => {
+                        panic!("Unexpected latch on level {}: {:?}", i, latch);
                     }
                     Node::AndGate(gate) => {
                         let x = mapping.len() as u32 + 1;
