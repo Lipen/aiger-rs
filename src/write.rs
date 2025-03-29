@@ -5,7 +5,7 @@ use std::path::Path;
 use eyre::WrapErr;
 
 use crate::aig::Aig;
-use crate::aiger::Header;
+use crate::aiger::{Header, TAG};
 
 impl Aig {
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> eyre::Result<()> {
@@ -26,23 +26,30 @@ impl Aig {
     }
 
     pub fn write(&self, writer: &mut impl Write) -> eyre::Result<()> {
-        let header = Header {
-            m: *self.nodes().keys().max().unwrap() as usize,
-            i: self.inputs().len(),
-            l: 0,
-            o: self.outputs().len(),
-            a: self.nodes().len() - self.inputs().len(),
-        };
         // Header:
-        writeln!(writer, "{}", header)?;
+        let m = *self.nodes().keys().max().unwrap() as usize;
+        let i = self.inputs().len();
+        let l = self.latches().len();
+        let o = self.outputs().len();
+        let a = self.and_gates().count();
+        writeln!(writer, "{} {} {} {} {} {}", TAG, m, i, l, o, a)?;
+
         // Inputs:
-        for &input in self.inputs() {
-            writeln!(writer, "{}", input * 2)?;
+        for &id in self.inputs() {
+            writeln!(writer, "{}", id * 2)?;
         }
+
+        // Latches:
+        for &id in self.latches() {
+            let latch = self.latch(id);
+            writeln!(writer, "{} {}", id * 2, latch.next.raw())?;
+        }
+
         // Outputs:
         for output in self.outputs() {
             writeln!(writer, "{}", output.raw())?;
         }
+
         // Gates:
         let mut gates: Vec<u32> = self.and_gates().map(|g| g.id).collect();
         gates.sort();
@@ -51,6 +58,7 @@ impl Aig {
             let [left, right] = gate.args;
             writeln!(writer, "{} {} {}", id * 2, left.raw(), right.raw())?;
         }
+
         Ok(())
     }
 }
@@ -64,7 +72,7 @@ mod tests {
     use crate::reference::Ref;
 
     #[test]
-    fn test_write_aiger() {
+    fn test_write_aig() {
         let mut aig = Aig::default();
         aig.add_input(1);
         aig.add_input(2);
@@ -81,6 +89,22 @@ mod tests {
             8
             6 3 4
             8 7 0
+        "};
+        assert_eq!(s, expected);
+    }
+
+    #[test]
+    fn test_write_toggle() {
+        let mut aig = Aig::default();
+        aig.add_latch(1, Ref::negative(1));
+        aig.add_output(Ref::positive(1));
+        aig.add_output(Ref::negative(1));
+        let s = aig.write_to_string().unwrap();
+        let expected = indoc! {"
+            aag 1 0 1 2 0
+            2 3
+            2
+            3
         "};
         assert_eq!(s, expected);
     }

@@ -43,7 +43,7 @@ pub struct Header {
     pub a: usize,
 }
 
-const TAG: &str = "aag";
+pub const TAG: &str = "aag";
 
 impl FromStr for Header {
     type Err = eyre::Error;
