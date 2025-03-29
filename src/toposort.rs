@@ -82,7 +82,7 @@ mod tests {
         graph.insert(8, vec![9]);
         graph.insert(11, vec![9, 2, 10]);
 
-        let mut layers = toposort_layers(&graph);
+        let mut layers: Vec<_> = toposort_layers(&graph).collect();
         sort_layers(&mut layers);
         assert_eq!(layers, vec![vec![3, 5, 7], vec![8, 11], vec![2, 9, 10]]);
     }
@@ -94,7 +94,7 @@ mod tests {
         graph.insert("B", vec!["C"]);
         graph.insert("C", vec!["D"]);
 
-        let mut layers = toposort_layers(&graph);
+        let mut layers: Vec<_> = toposort_layers(&graph).collect();
         sort_layers(&mut layers);
         assert_eq!(layers, vec![vec!["A"], vec!["B"], vec!["C"], vec!["D"]]);
     }
@@ -106,7 +106,7 @@ mod tests {
         graph.insert("B", vec!["D"]);
         graph.insert("C", vec!["D"]);
 
-        let mut layers = toposort_layers(&graph);
+        let mut layers: Vec<_> = toposort_layers(&graph).collect();
         sort_layers(&mut layers);
         assert_eq!(layers, vec![vec!["A"], vec!["B", "C"], vec!["D"]]);
     }
@@ -119,15 +119,17 @@ mod tests {
         graph.insert(3, vec![4]);
         graph.insert(5, vec![6]);
 
-        let mut layers = toposort_layers(&graph);
+        let mut layers: Vec<_> = toposort_layers(&graph).collect();
         sort_layers(&mut layers);
         assert_eq!(layers, vec![vec![1, 5], vec![2, 3, 6], vec![4]]);
     }
 
     #[test]
     fn test_single_node() {
-        let graph = HashMap::from([(1, vec![])]);
-        let layers = toposort_layers(&graph);
+        let mut graph = HashMap::new();
+        graph.insert(1, vec![]);
+
+        let layers: Vec<_> = toposort_layers(&graph).collect();
         assert_eq!(layers, vec![vec![1]]);
     }
 
@@ -136,7 +138,7 @@ mod tests {
         let mut graph = HashMap::new();
         graph.insert("A", vec!["B"]);
 
-        let mut layers = toposort_layers(&graph);
+        let mut layers: Vec<_> = toposort_layers(&graph).collect();
         sort_layers(&mut layers);
         assert_eq!(layers, vec![vec!["A"], vec!["B"]]);
     }
@@ -144,7 +146,7 @@ mod tests {
     #[test]
     fn test_empty_graph() {
         let graph: HashMap<i32, Vec<i32>> = HashMap::new();
-        let layers = toposort_layers(&graph);
+        let layers: Vec<_> = toposort_layers(&graph).collect();
         assert!(layers.is_empty());
     }
 
@@ -156,8 +158,7 @@ mod tests {
         graph.insert("B", vec!["C"]);
         graph.insert("C", vec!["A"]);
 
-        let layers = toposort_layers(&graph);
-        layers.for_each(drop);
+        toposort_layers(&graph).for_each(drop);
     }
 
     #[test]
@@ -166,7 +167,7 @@ mod tests {
         graph.insert("A", vec!["B"]);
         graph.insert("C", vec!["D"]);
 
-        let mut layers = toposort_layers(&graph);
+        let mut layers: Vec<_> = toposort_layers(&graph).collect();
         sort_layers(&mut layers);
         assert_eq!(layers, vec![vec!["A", "C"], vec!["B", "D"]]);
     }
